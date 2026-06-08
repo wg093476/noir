@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOIR</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  background:#000;
+  color:#fff;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-family:'Pixelify Sans',sans-serif;
+}
+
+.container{
+  width:90%;
+  max-width:800px;
+  text-align:center;
+}
+
+.logo{
+  font-size:42px;
+  letter-spacing:10px;
+  margin-bottom:60px;
+  user-select:none;
+}
+
+.search-wrap{
+  position:relative;
+}
+
+input{
+  width:100%;
+  background:transparent;
+  border:none;
+  border-bottom:1px solid #333;
+  color:#fff;
+  text-align:center;
+  font-size:24px;
+  padding:18px;
+  outline:none;
+  font-family:'Pixelify Sans',sans-serif;
+}
+
+.placeholder{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  color:#444;
+  pointer-events:none;
+  white-space:nowrap;
+  transition:opacity .4s ease;
+  font-size:24px;
+}
+
+.sub{
+  color:#333;
+  margin-top:40px;
+  font-size:12px;
+  letter-spacing:3px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="logo">NOIR</div>
+
+  <div class="search-wrap">
+
+    <div class="placeholder" id="placeholder">
+      amazon 100
+    </div>
+
+    <input
+      id="search"
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+  </div>
+
+  <div class="sub">
+    instant digital gift cards
+  </div>
+
+</div>
+
+<script>
+
+const examples = [
+  "amazon 100",
+  "steam 50",
+  "fortnite 20",
+  "roblox 25",
+  "xbox 10",
+  "playstation 50"
+];
+
+const placeholder =
+document.getElementById("placeholder");
+
+const input =
+document.getElementById("search");
+
+let current = 0;
+
+setInterval(() => {
+
+  if(input.value.length > 0) return;
+
+  placeholder.style.opacity = 0;
+
+  setTimeout(() => {
+
+    current =
+    (current + 1) % examples.length;
+
+    placeholder.textContent =
+    examples[current];
+
+    placeholder.style.opacity = 1;
+
+  },400);
+
+},3000);
+
+input.addEventListener("input", () => {
+
+  if(input.value.length > 0){
+    placeholder.style.display = "none";
+  } else {
+    placeholder.style.display = "block";
+  }
+
+});
+
+input.addEventListener("keydown", (e) => {
+
+  if(e.key === "Enter"){
+
+    const query =
+    input.value.trim();
+
+    if(!query) return;
+
+    const amount =
+    query.match(/\d+/)?.[0] || "20";
+
+    const brand =
+    query.replace(/\d+/g,"")
+    .trim()
+    .toUpperCase();
+
+    document.body.innerHTML = `
+      <div style="
+        background:black;
+        color:white;
+        height:100vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        font-family:'Pixelify Sans',sans-serif;
+      ">
+        <div style="text-align:center">
+          <div style="
+            font-size:36px;
+            letter-spacing:6px;
+            margin-bottom:20px;
+          ">
+            ${brand}
+          </div>
+
+          <div style="
+            font-size:28px;
+            margin-bottom:20px;
+          ">
+            $${amount}
+          </div>
+
+          <div style="
+            color:#666;
+            margin-bottom:30px;
+          ">
+            instant delivery
+          </div>
+
+          <button style="
+            background:white;
+            color:black;
+            border:none;
+            padding:14px 30px;
+            cursor:pointer;
+            font-family:'Pixelify Sans',sans-serif;
+          ">
+            continue
+          </button>
+        </div>
+      </div>
+    `;
+
+  }
+
+});
+
+</script>
+
+</body>
+</html>
