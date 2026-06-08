@@ -225,12 +225,14 @@ input.addEventListener("keydown",(e)=>{
         const amount =
         query.match(/\d+/)?.[0] || "20";
 
-        const brand =
-        query
-        .replace(/\$/g,"")
-        .replace(/\d+/g,"")
-        .trim()
-        .toUpperCase();
+        const imageName =
+query
+.replace(/\$/g,"")
+.replace(/\d+/g,"")
+.trim()
+.toLowerCase();
+
+const imagePath = `images/${imageName}.jpg`;
 
         document.body.innerHTML = `
 
@@ -251,12 +253,23 @@ input.addEventListener("keydown",(e)=>{
             min-width:350px;
             ">
 
-                <div style="
-                font-size:42px;
-                margin-bottom:20px;
-                ">
-                ${brand}
-                </div>
+               <img
+src="${imagePath}"
+style="
+width:320px;
+max-width:100%;
+border-radius:8px;
+margin-bottom:25px;
+"
+onerror="this.style.display='none'"
+>
+
+<div style="
+font-size:42px;
+margin-bottom:20px;
+">
+${brand}
+</div>
 
                 <div style="
                 font-size:30px;
