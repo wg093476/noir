@@ -35,8 +35,15 @@ text-align:center;
 font-family:'Pixelify Sans',sans-serif;
 font-size:64px;
 letter-spacing:14px;
-margin-bottom:55px;
+margin-bottom:15px;
 text-shadow:0 0 10px rgba(255,255,255,.15);
+}
+
+.tagline{
+color:#666;
+font-family:'JetBrains Mono', monospace;
+font-size:14px;
+margin-bottom:40px;
 }
 
 .search-wrap{
@@ -70,6 +77,13 @@ font-size:30px;
 font-family:'JetBrains Mono', monospace;
 }
 
+.brands{
+margin-top:20px;
+color:#444;
+font-family:'JetBrains Mono', monospace;
+font-size:12px;
+}
+
 .cursor{
 animation:blink 1s infinite;
 }
@@ -91,6 +105,10 @@ opacity:0;
 NOIR
 </div>
 
+<div class="tagline">
+Gift cards. Delivered instantly.
+</div>
+
 <div class="search-wrap">
 
 <div class="placeholder" id="placeholder">
@@ -103,6 +121,10 @@ autocomplete="off"
 spellcheck="false"
 >
 
+</div>
+
+<div class="brands">
+Amazon • Steam • Roblox • Xbox • PlayStation
 </div>
 
 </div>
@@ -212,8 +234,11 @@ const brand =
 query
 .replace(/\$/g,"")
 .replace(/\d+/g,"")
-.trim()
-.toUpperCase();
+.trim();
+
+const brandDisplay =
+brand.charAt(0).toUpperCase() +
+brand.slice(1);
 
 document.body.innerHTML = `
 
@@ -244,10 +269,10 @@ margin-bottom:25px;
 ">
 
 <div style="
-font-size:42px;
+font-size:32px;
 margin-bottom:15px;
 ">
-${brand}
+${brandDisplay} Gift Card
 </div>
 
 <div style="
@@ -261,7 +286,7 @@ $${amount}
 color:#777;
 margin-bottom:35px;
 ">
-instant delivery
+Delivered in under 30 seconds
 </div>
 
 <div style="
