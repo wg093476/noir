@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>NOIR</title>
 
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -18,7 +17,7 @@
 
 body{
     background:#000;
-    color:#fff;
+    color:white;
     height:100vh;
     display:flex;
     justify-content:center;
@@ -28,7 +27,7 @@ body{
 
 .container{
     width:90%;
-    max-width:900px;
+    max-width:1100px;
     text-align:center;
     animation:fadeIn .8s ease;
 }
@@ -46,25 +45,32 @@ body{
 
 .logo{
     font-family:'Pixelify Sans',sans-serif;
-    font-size:58px;
+    font-size:64px;
     letter-spacing:14px;
-    margin-bottom:80px;
-    text-shadow:0 0 15px rgba(255,255,255,.08);
+    margin-bottom:55px;
+    text-shadow:
+    0 0 8px rgba(255,255,255,.15),
+    0 0 20px rgba(255,255,255,.05);
     user-select:none;
 }
 
 .search-wrap{
     position:relative;
+    max-width:950px;
+    margin:0 auto;
 }
 
 input{
     width:100%;
     background:transparent;
     border:none;
-    outline:none;
+    border-top:1px solid rgba(255,255,255,.15);
+    border-bottom:1px solid rgba(255,255,255,.15);
     color:white;
     text-align:center;
-    font-size:28px;
+    font-size:30px;
+    padding:28px 20px;
+    outline:none;
     font-family:'JetBrains Mono', monospace;
 }
 
@@ -73,10 +79,10 @@ input{
     left:50%;
     top:50%;
     transform:translate(-50%,-50%);
-    color:#666;
+    color:#8a8a8a;
     white-space:nowrap;
     pointer-events:none;
-    font-size:28px;
+    font-size:30px;
     font-family:'JetBrains Mono', monospace;
 }
 
@@ -103,7 +109,7 @@ input{
 
     <div class="search-wrap">
 
-        <div class="placeholder">
+        <div class="placeholder" id="placeholder">
             <span id="typewriter"></span><span class="cursor">_</span>
         </div>
 
@@ -120,12 +126,13 @@ input{
 <script>
 
 const phrases = [
-    "$amazon 100",
-    "$steam 50",
-    "$fortnite 20",
-    "$roblox 25",
-    "$xbox 50",
-    "$playstation 100"
+    "amazon $100",
+    "steam $50",
+    "fortnite $20",
+    "roblox $25",
+    "xbox $50",
+    "playstation $100",
+    "apple $100"
 ];
 
 const typewriter =
@@ -145,8 +152,7 @@ function animateText(){
         return;
     }
 
-    const current =
-    phrases[phraseIndex];
+    const current = phrases[phraseIndex];
 
     if(!deleting){
 
@@ -161,7 +167,7 @@ function animateText(){
 
             setTimeout(
                 animateText,
-                1500
+                1400
             );
 
             return;
@@ -187,7 +193,7 @@ function animateText(){
 
     setTimeout(
         animateText,
-        deleting ? 50 : 90
+        deleting ? 45 : 85
     );
 
 }
@@ -197,14 +203,12 @@ animateText();
 input.addEventListener("input",()=>{
 
     const placeholder =
-    document.querySelector(".placeholder");
+    document.getElementById("placeholder");
 
     if(input.value.length > 0){
-        placeholder.style.display =
-        "none";
+        placeholder.style.display = "none";
     }else{
-        placeholder.style.display =
-        "block";
+        placeholder.style.display = "block";
     }
 
 });
@@ -222,24 +226,30 @@ input.addEventListener("keydown",(e)=>{
         query.match(/\d+/)?.[0] || "20";
 
         const brand =
-        query.replace(/\d+/g,"")
-        .replace("$","")
+        query
+        .replace(/\$/g,"")
+        .replace(/\d+/g,"")
         .trim()
         .toUpperCase();
 
         document.body.innerHTML = `
 
         <div style="
-        height:100vh;
         background:black;
+        color:white;
+        height:100vh;
         display:flex;
         justify-content:center;
         align-items:center;
-        color:white;
         font-family:'JetBrains Mono', monospace;
         ">
 
-            <div style="text-align:center">
+            <div style="
+            text-align:center;
+            border:1px solid rgba(255,255,255,.15);
+            padding:50px;
+            min-width:350px;
+            ">
 
                 <div style="
                 font-size:42px;
@@ -256,7 +266,7 @@ input.addEventListener("keydown",(e)=>{
                 </div>
 
                 <div style="
-                color:#666;
+                color:#777;
                 margin-bottom:35px;
                 ">
                 instant delivery
@@ -268,6 +278,7 @@ input.addEventListener("keydown",(e)=>{
                 border:none;
                 padding:14px 34px;
                 cursor:pointer;
+                font-size:14px;
                 font-family:'JetBrains Mono', monospace;
                 ">
                 CONTINUE
