@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>NOIR</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
 
@@ -17,25 +18,39 @@
 
 body{
     background:#000;
-    color:white;
+    color:#fff;
     height:100vh;
     display:flex;
     justify-content:center;
     align-items:center;
+    overflow:hidden;
 }
 
 .container{
     width:90%;
-    max-width:850px;
+    max-width:900px;
     text-align:center;
+    animation:fadeIn .8s ease;
+}
+
+@keyframes fadeIn{
+    from{
+        opacity:0;
+        transform:translateY(10px);
+    }
+    to{
+        opacity:1;
+        transform:translateY(0);
+    }
 }
 
 .logo{
     font-family:'Pixelify Sans',sans-serif;
-    font-size:52px;
-    letter-spacing:12px;
-    margin-bottom:70px;
-    color:white;
+    font-size:58px;
+    letter-spacing:14px;
+    margin-bottom:80px;
+    text-shadow:0 0 15px rgba(255,255,255,.08);
+    user-select:none;
 }
 
 .search-wrap{
@@ -46,12 +61,10 @@ input{
     width:100%;
     background:transparent;
     border:none;
-    border-bottom:1px solid #222;
+    outline:none;
     color:white;
     text-align:center;
-    font-size:26px;
-    padding:18px;
-    outline:none;
+    font-size:28px;
     font-family:'JetBrains Mono', monospace;
 }
 
@@ -61,11 +74,9 @@ input{
     top:50%;
     transform:translate(-50%,-50%);
     color:#666;
-    pointer-events:none;
     white-space:nowrap;
-    transition:opacity .35s ease;
-    font-size:26px;
-    letter-spacing:1px;
+    pointer-events:none;
+    font-size:28px;
     font-family:'JetBrains Mono', monospace;
 }
 
@@ -77,14 +88,6 @@ input{
     50%{
         opacity:0;
     }
-}
-
-.sub{
-    margin-top:40px;
-    color:#222;
-    font-size:11px;
-    letter-spacing:3px;
-    font-family:'JetBrains Mono', monospace;
 }
 
 </style>
@@ -100,8 +103,8 @@ input{
 
     <div class="search-wrap">
 
-        <div class="placeholder" id="placeholder">
-            amazon 100
+        <div class="placeholder">
+            <span id="typewriter"></span><span class="cursor">_</span>
         </div>
 
         <input
@@ -112,63 +115,101 @@ input{
 
     </div>
 
-    <div class="sub">
-        instant digital gift cards
-    </div>
-
 </div>
 
 <script>
 
-const examples = [
-    "amazon 100",
-    "steam 50",
-    "fortnite 20",
-    "roblox 25",
-    "apple 100",
-    "xbox 50",
-    "playstation 100"
+const phrases = [
+    "$amazon 100",
+    "$steam 50",
+    "$fortnite 20",
+    "$roblox 25",
+    "$xbox 50",
+    "$playstation 100"
 ];
 
-const placeholder =
-document.getElementById("placeholder");
+const typewriter =
+document.getElementById("typewriter");
 
 const input =
 document.getElementById("search");
 
-let current = 0;
+let phraseIndex = 0;
+let charIndex = 0;
+let deleting = false;
 
-setInterval(() => {
-
-    if(input.value.length > 0) return;
-
-    placeholder.style.opacity = 0;
-
-    setTimeout(() => {
-
-        current =
-        (current + 1) % examples.length;
-
-        placeholder.textContent =
-        examples[current];
-
-        placeholder.style.opacity = 1;
-
-    },350);
-
-},3000);
-
-input.addEventListener("input", () => {
+function animateText(){
 
     if(input.value.length > 0){
-        placeholder.style.display = "none";
+        typewriter.textContent = "";
+        return;
+    }
+
+    const current =
+    phrases[phraseIndex];
+
+    if(!deleting){
+
+        typewriter.textContent =
+        current.substring(0,charIndex + 1);
+
+        charIndex++;
+
+        if(charIndex === current.length){
+
+            deleting = true;
+
+            setTimeout(
+                animateText,
+                1500
+            );
+
+            return;
+        }
+
     }else{
-        placeholder.style.display = "block";
+
+        typewriter.textContent =
+        current.substring(0,charIndex - 1);
+
+        charIndex--;
+
+        if(charIndex === 0){
+
+            deleting = false;
+
+            phraseIndex =
+            (phraseIndex + 1) %
+            phrases.length;
+        }
+
+    }
+
+    setTimeout(
+        animateText,
+        deleting ? 50 : 90
+    );
+
+}
+
+animateText();
+
+input.addEventListener("input",()=>{
+
+    const placeholder =
+    document.querySelector(".placeholder");
+
+    if(input.value.length > 0){
+        placeholder.style.display =
+        "none";
+    }else{
+        placeholder.style.display =
+        "block";
     }
 
 });
 
-input.addEventListener("keydown", (e) => {
+input.addEventListener("keydown",(e)=>{
 
     if(e.key === "Enter"){
 
@@ -182,22 +223,23 @@ input.addEventListener("keydown", (e) => {
 
         const brand =
         query.replace(/\d+/g,"")
+        .replace("$","")
         .trim()
         .toUpperCase();
 
         document.body.innerHTML = `
 
         <div style="
-        background:black;
-        color:white;
         height:100vh;
+        background:black;
         display:flex;
         justify-content:center;
         align-items:center;
+        color:white;
         font-family:'JetBrains Mono', monospace;
         ">
 
-            <div style="text-align:center;">
+            <div style="text-align:center">
 
                 <div style="
                 font-size:42px;
@@ -226,7 +268,6 @@ input.addEventListener("keydown", (e) => {
                 border:none;
                 padding:14px 34px;
                 cursor:pointer;
-                font-size:14px;
                 font-family:'JetBrains Mono', monospace;
                 ">
                 CONTINUE
