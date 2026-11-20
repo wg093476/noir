@@ -4,7 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NOIR</title>
-<meta name="description" content="Digital gift cards. Delivered instantly.">
+<meta name="description" content="Digital gift cards. Delivered instantly. Roblox, Steam, Fortnite, Xbox, PlayStation, Amazon and more — pay with Apple Pay, Google Pay, card or crypto.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#000000">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.noirgc.com/">
+<meta property="og:title" content="NOIR — Digital gift cards. Delivered instantly.">
+<meta property="og:description" content="Roblox, Steam, Fortnite, Xbox, PlayStation, Amazon and more. Pay with Apple Pay, Google Pay, card or crypto.">
+<meta property="og:image" content="https://www.noirgc.com/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<script defer src="/_vercel/insights/script.js"></script>
 
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
@@ -16,12 +29,16 @@ background:#000;
 color:#fff;
 min-height:100vh;
 display:flex;
-justify-content:center;
+flex-direction:column;
 align-items:center;
 font-family:'JetBrains Mono',monospace;
 }
 
-.container{width:90%;max-width:1100px;text-align:center}
+.container{
+width:90%;max-width:1100px;text-align:center;
+flex:1;display:flex;flex-direction:column;justify-content:center;
+padding:48px 0 0;
+}
 
 .logo{
 font-family:'Pixelify Sans',sans-serif;
@@ -76,7 +93,29 @@ font-family:inherit;font-size:16px;text-align:left;cursor:pointer;
 .suggestions button:hover,.suggestions button.active{background:#0d0d0d;color:#fff}
 .suggestions img{width:44px;height:28px;object-fit:cover;border-radius:3px;background:#111}
 
-.brands{margin-top:20px;color:#444;font-size:12px}
+.brands{margin-top:18px;color:#444;font-size:12px}
+
+/* brand tiles */
+.tiles{
+display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+width:100%;max-width:760px;margin:34px auto 0;
+}
+.tile{
+background:none;border:none;cursor:pointer;color:#888;
+font-family:inherit;font-size:12px;text-align:center;
+}
+.tile .face{
+display:flex;align-items:center;justify-content:center;
+aspect-ratio:1.6;border-radius:8px;margin-bottom:8px;
+background:#0d0d0d center/cover no-repeat;
+border:1px solid rgba(255,255,255,.08);
+font-family:'Pixelify Sans',sans-serif;font-size:17px;letter-spacing:2px;color:#777;
+transition:transform .15s ease,border-color .15s ease;
+}
+.tile:hover .face,.tile:focus-visible .face{transform:translateY(-2px);border-color:rgba(255,255,255,.35)}
+.tile:hover,.tile:focus-visible{color:#fff;outline:none}
+.tiles.loading .face{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
 .status{margin-top:18px;color:#777;font-size:13px;min-height:18px}
 
 /* product view */
@@ -156,6 +195,7 @@ font-family:inherit;font-size:12px;cursor:pointer;
 .error{color:#ff6b6b;font-size:13px;margin-top:14px;min-height:16px}
 
 @media (max-width:600px){
+.tiles{grid-template-columns:repeat(2,1fr);gap:10px}
 .logo{font-size:44px;letter-spacing:10px}
 #search,.placeholder{font-size:20px}
 .card{padding:28px 18px}
@@ -180,8 +220,9 @@ font-family:inherit;font-size:12px;cursor:pointer;
     <input id="search" autocomplete="off" spellcheck="false" aria-label="Search gift cards">
     <div class="suggestions" id="suggestions"></div>
   </div>
-  <div class="brands">Amazon • Steam • Roblox • Xbox • PlayStation • 100+ brands</div>
   <div class="status" id="status"></div>
+  <div class="tiles loading" id="tiles" aria-label="Popular gift cards"></div>
+  <div class="brands">100+ brands · type any brand above</div>
 </div>
 
 <!-- product view -->
@@ -251,7 +292,9 @@ const SAMPLE = [
   { id: 3, name: "Fortnite V-Bucks US", brand: "Fortnite", logo: null, type: "fixed", amounts: [10, 25, 50, 100] },
   { id: 4, name: "Roblox US", brand: "Roblox", logo: null, type: "range", min: 10, max: 100 },
   { id: 5, name: "Xbox US", brand: "Xbox", logo: null, type: "fixed", amounts: [15, 25, 50, 100] },
-  { id: 6, name: "PlayStation Store US", brand: "PlayStation", logo: null, type: "fixed", amounts: [10, 25, 50, 100] }
+  { id: 6, name: "PlayStation Store US", brand: "PlayStation", logo: null, type: "fixed", amounts: [10, 25, 50, 100] },
+  { id: 7, name: "Nintendo eShop US", brand: "Nintendo", logo: null, type: "fixed", amounts: [20, 35, 50] },
+  { id: 8, name: "Apple Gift Card US", brand: "Apple", logo: null, type: "range", min: 10, max: 100 }
 ];
 
 function loadCatalog(){
@@ -268,7 +311,48 @@ function loadCatalog(){
   }
   return catalogPromise;
 }
-loadCatalog();
+loadCatalog().then(renderTiles);
+
+/* ---------- popular brand tiles ---------- */
+const FEATURED = ["Roblox", "Steam", "Fortnite", "Xbox", "PlayStation", "Nintendo", "Apple", "Amazon"];
+
+function renderTiles(){
+  const box = $("tiles");
+  box.innerHTML = "";
+  box.classList.toggle("loading", !catalog);
+  FEATURED.forEach(name => {
+    const p = catalog ? search(name)[0] : null;
+    if(catalog && !p) return;                // not in stock -> no tile
+    const b = document.createElement("button");
+    b.className = "tile";
+    b.type = "button";
+    const face = document.createElement("div");
+    face.className = "face";
+    if(p && p.logo) face.style.backgroundImage = `url("${p.logo.replace(/"/g, "%22")}")`;
+    else face.textContent = name.toUpperCase();
+    const label = document.createElement("div");
+    label.textContent = name;
+    b.append(face, label);
+    b.setAttribute("aria-label", name + " gift card");
+    b.addEventListener("click", async () => {
+      await loadCatalog();
+      const hit = search(name)[0];
+      if(hit) openProduct(hit, null);
+    });
+    box.appendChild(b);
+  });
+  box.style.display = catalog && !box.children.length ? "none" : "";
+}
+
+/* searches that find nothing are logged (Vercel Logs: SEARCH_MISS) so you know what to stock */
+let missTimer = null;
+function logMiss(q){
+  if(PREVIEW) return;
+  clearTimeout(missTimer);
+  missTimer = setTimeout(() => {
+    try{ navigator.sendBeacon("/api/miss", JSON.stringify({ q })); }catch(e){}
+  }, 1500);
+}
 
 const norm = (s) => s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 
@@ -323,13 +407,17 @@ function renderSuggestions(){
     suggestions.appendChild(b);
   });
   suggestions.style.display = current.length ? "block" : "none";
-  $("status").textContent = q && catalog && !current.length && parseQuery(q).words.length
-    ? "No gift card found for that — try another brand." : "";
+  const miss = q && catalog && !current.length && parseQuery(q).words.length;
+  $("status").textContent = miss ? "No gift card found for that — try another brand." : "";
+  if(miss) logMiss(q);
 }
 
 input.addEventListener("input", () => {
   placeholder.style.display = input.value.length ? "none" : "block";
-  if(!catalog) loadCatalog().then(renderSuggestions);
+  if(!catalog){
+    $("status").textContent = "Loading cards…";
+    loadCatalog().then(renderSuggestions);
+  }
   else renderSuggestions();
 });
 
@@ -601,5 +689,6 @@ $("home").addEventListener("click", () => { if($("card").style.display === "bloc
 window.addEventListener("popstate", showSearch);
 </script>
 
+<script src="assets/site.js"></script>
 </body>
 </html>
