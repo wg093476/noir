@@ -1,6 +1,6 @@
 // POST /api/webhook  <- Stripe calls this when a payment finishes.
 // Orders the card from Reloadly even if the customer closed the tab.
-import { verifyStripeSignature, fulfill, json } from "./_lib.js";
+import { verifyStripeSignature, fulfill, fulfillPaymentIntent, json } from "./_lib.js";
 
 export async function POST(request) {
   const raw = await request.text();
@@ -12,17 +12,24 @@ export async function POST(request) {
   if (!ok) return json({ error: "Bad signature" }, 400);
 
   const event = JSON.parse(raw);
-  if (
-    event.type === "checkout.session.completed" ||
-    event.type === "checkout.session.async_payment_succeeded"
-  ) {
-    try {
-      const result = await fulfill(event.data.object.id);
+  const obj = event.data?.object || {};
+  try {
+    // "Pay with card" checkout page
+    if (
+      event.type === "checkout.session.completed" ||
+      event.type === "checkout.session.async_payment_succeeded"
+    ) {
+      const result = await fulfill(obj.id);
       return json({ received: true, state: result.state });
-    } catch (err) {
-      console.error("Fulfillment error", err);
-      return json({ error: "retry" }, 500); // Stripe will retry later
     }
+    // Apple Pay / Google Pay / Link buttons on the page
+    if (event.type === "payment_intent.succeeded" && obj.metadata?.noir_flow === "express") {
+      const result = await fulfillPaymentIntent(obj.id);
+      return json({ received: true, state: result.state });
+    }
+  } catch (err) {
+    console.error("Fulfillment error", err);
+    return json({ error: "retry" }, 500); // Stripe will retry later
   }
   return json({ received: true });
 }

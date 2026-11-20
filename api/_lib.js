@@ -208,25 +208,44 @@ export function verifyStripeSignature(rawBody, header, secret, toleranceSec = 30
   });
 }
 
-// ---------- fulfillment ----------
-// Used by BOTH the webhook and the success page, so the customer gets their code
-// even if one of them is slow. Progress is stored on the Stripe PaymentIntent's
-// metadata, so no database is needed.
+// ---------- buying the card ----------
 
-export async function fulfill(sessionId) {
-  const session = await stripe(`/checkout/sessions/${sessionId}`, {
-    params: { "expand[]": "payment_intent" },
+// Buys one card from Reloadly. orderRef must be unique per customer payment:
+// Reloadly refuses the same customIdentifier twice, so a card can't be bought twice.
+export function placeOrder({ productId, amount, email, orderRef }) {
+  return reloadly("/orders", {
+    method: "POST",
+    body: {
+      productId: Number(productId),
+      countryCode: settings().country,
+      quantity: 1,
+      unitPrice: Number(amount),
+      customIdentifier: orderRef,
+      senderName: "NOIR",
+      recipientEmail: email,
+    },
   });
-  if (session.payment_status !== "paid") return { state: "unpaid" };
+}
 
-  const pi = session.payment_intent;
+export const isDuplicateOrder = (err) =>
+  /duplicate|already|custom.?identifier/.test(String(err?.message || "").toLowerCase());
+
+// ---------- fulfillment ----------
+// Works for both ways of paying with Stripe:
+//   - Apple Pay / Google Pay / Link buttons on the page (a PaymentIntent we create)
+//   - the "Pay with card" checkout page (a Checkout Session, which also has a PaymentIntent)
+// It's used by BOTH the webhook and the success page, so the customer gets their code
+// even if one of them is slow. Progress is stored on the PaymentIntent's metadata,
+// so no database is needed.
+
+async function fulfillIntent(pi, email) {
   const meta = pi.metadata || {};
-  if (meta.noir_status === "done") return { state: "done", transactionId: meta.reloadly_tx };
-  if (meta.noir_status === "refunded") return { state: "refunded" };
+  if (meta.noir_status === "done") return { state: "done", transactionId: meta.reloadly_tx, pi };
+  if (meta.noir_status === "refunded") return { state: "refunded", pi };
   // Another attempt is ordering right now. If it got stuck for over 2 minutes,
   // try again (Reloadly's customIdentifier check still blocks a double order).
   const startedAgo = Date.now() / 1000 - Number(meta.noir_started || 0);
-  if (meta.noir_status === "processing" && startedAgo < 120) return { state: "processing" };
+  if (meta.noir_status === "processing" && startedAgo < 120) return { state: "processing", pi };
 
   await stripe(`/payment_intents/${pi.id}`, {
     method: "POST",
@@ -235,39 +254,28 @@ export async function fulfill(sessionId) {
     },
   });
 
-  const { productId, amount } = session.metadata;
-  const email = session.customer_details?.email || session.customer_email;
-
   try {
-    const order = await reloadly("/orders", {
-      method: "POST",
-      body: {
-        productId: Number(productId),
-        countryCode: settings().country,
-        quantity: 1,
-        unitPrice: Number(amount),
-        customIdentifier: session.id, // Reloadly refuses the same id twice
-        senderName: "NOIR",
-        recipientEmail: email,
-      },
+    const order = await placeOrder({
+      productId: meta.productId,
+      amount: meta.amount,
+      email,
+      orderRef: pi.id,
     });
     await stripe(`/payment_intents/${pi.id}`, {
       method: "POST",
       params: { metadata: { noir_status: "done", reloadly_tx: order.transactionId } },
     });
-    return { state: "done", transactionId: String(order.transactionId) };
+    return { state: "done", transactionId: String(order.transactionId), pi };
   } catch (err) {
-    const msg = String(err.message || "").toLowerCase();
-    const duplicate = /duplicate|already|custom.?identifier/.test(msg);
-    if (duplicate) {
+    if (isDuplicateOrder(err)) {
       // The card was already ordered by another attempt; don't refund.
-      return { state: "processing" };
+      return { state: "processing", pi };
     }
     // Card could not be bought (out of stock, low wallet balance...). Give the money back.
     await stripe("/refunds", {
       method: "POST",
       params: { payment_intent: pi.id, metadata: { reason: "reloadly_failed" } },
-      idempotencyKey: "refund-" + session.id,
+      idempotencyKey: "refund-" + pi.id,
     });
     await stripe(`/payment_intents/${pi.id}`, {
       method: "POST",
@@ -275,7 +283,79 @@ export async function fulfill(sessionId) {
         metadata: { noir_status: "refunded", noir_error: String(err.message).slice(0, 400) },
       },
     });
-    console.error("Order failed, refunded", session.id, err.message, err.data);
-    return { state: "refunded" };
+    console.error("Order failed, refunded", pi.id, err.message, err.data);
+    return { state: "refunded", pi };
   }
+}
+
+// Card checkout page (Checkout Session)
+export async function fulfill(sessionId) {
+  const session = await stripe(`/checkout/sessions/${sessionId}`, {
+    params: { "expand[]": "payment_intent" },
+  });
+  if (session.payment_status !== "paid") return { state: "unpaid" };
+  const email = session.customer_details?.email || session.customer_email;
+  return fulfillIntent(session.payment_intent, email);
+}
+
+// Apple Pay / Google Pay / Link buttons on the page (PaymentIntent)
+export async function fulfillPaymentIntent(piId) {
+  const pi = await stripe(`/payment_intents/${piId}`);
+  if (pi.status === "processing") return { state: "processing", pi };
+  if (pi.status !== "succeeded") return { state: "unpaid", pi };
+  return fulfillIntent(pi, pi.metadata?.email || pi.receipt_email);
+}
+
+// ---------- crypto (NOWPayments: BTC, ETH, USDT, USDC and 350+ more) ----------
+
+export const cryptoEnabled = () => Boolean(process.env.NOWPAYMENTS_API_KEY);
+
+const nowBase = () =>
+  env("NOWPAYMENTS_SANDBOX", "true") === "true"
+    ? "https://api-sandbox.nowpayments.io/v1"
+    : "https://api.nowpayments.io/v1";
+
+export async function nowpayments(path, body) {
+  const res = await fetch(nowBase() + path, {
+    method: body ? "POST" : "GET",
+    headers: {
+      "x-api-key": process.env.NOWPAYMENTS_API_KEY,
+      ...(body ? { "content-type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error("NOWPayments: " + (data.message || res.status));
+  return data;
+}
+
+// Order ids look like noir_<productId>_<amount>_<random>, so the webhook
+// knows what to buy without needing a database.
+export function makeCryptoOrderId(productId, amount) {
+  return `noir_${productId}_${amount}_${crypto.randomBytes(6).toString("hex")}`;
+}
+
+export function parseCryptoOrderId(id) {
+  const m = /^noir_(\d+)_(\d+(?:\.\d{1,2})?)_[0-9a-f]{12}$/.exec(String(id || ""));
+  return m ? { productId: m[1], amount: Number(m[2]) } : null;
+}
+
+function sortKeys(v) {
+  if (Array.isArray(v)) return v.map(sortKeys);
+  if (v && typeof v === "object") {
+    return Object.keys(v).sort().reduce((o, k) => ((o[k] = sortKeys(v[k])), o), {});
+  }
+  return v;
+}
+
+// NOWPayments signs the JSON body (keys sorted A-Z) with HMAC-SHA512 + your IPN secret.
+export function verifyNowpaymentsSignature(body, header, secret) {
+  if (!header || !secret) return false;
+  const expected = crypto
+    .createHmac("sha512", secret)
+    .update(JSON.stringify(sortKeys(body)))
+    .digest("hex");
+  const a = Buffer.from(String(header).trim().toLowerCase(), "hex");
+  const b = Buffer.from(expected, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
