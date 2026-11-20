@@ -169,7 +169,7 @@ function formEncode(obj, prefix, out = []) {
 }
 
 export async function stripe(path, { method = "GET", params, idempotencyKey } = {}) {
-  const headers = { authorization: "Bearer " + process.env.STRIPE_SECRET_KEY };
+  const headers = { authorization: "Bearer " + (process.env.STRIPE_SECRET_KEY || "").trim() };
   let url = "https://api.stripe.com/v1" + path;
   let body;
   if (params && method === "GET") url += "?" + formEncode(params);
@@ -186,6 +186,7 @@ export async function stripe(path, { method = "GET", params, idempotencyKey } = 
 
 // Checks the Stripe-Signature header so nobody can fake a "payment succeeded" call.
 export function verifyStripeSignature(rawBody, header, secret, toleranceSec = 300) {
+  secret = (secret || "").trim();
   if (!header || !secret) return false;
   const parts = Object.fromEntries(
     header.split(",").map((kv) => {
@@ -350,6 +351,7 @@ function sortKeys(v) {
 
 // NOWPayments signs the JSON body (keys sorted A-Z) with HMAC-SHA512 + your IPN secret.
 export function verifyNowpaymentsSignature(body, header, secret) {
+  secret = (secret || "").trim();
   if (!header || !secret) return false;
   const expected = crypto
     .createHmac("sha512", secret)
