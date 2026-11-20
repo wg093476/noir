@@ -1,0 +1,32 @@
+/* Shared look for NOIR's info pages (about, contact, refund, terms, privacy) */
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:#000;color:#ddd;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;
+  font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.75;
+}
+.top{width:100%;max-width:760px;padding:40px 5% 0;text-align:center}
+.top a{
+  font-family:'Pixelify Sans',sans-serif;font-size:40px;letter-spacing:10px;
+  color:#fff;text-decoration:none;text-shadow:0 0 10px rgba(255,255,255,.15);
+}
+main{width:100%;max-width:760px;padding:32px 5% 0}
+h1{font-size:24px;color:#fff;font-weight:500;margin-bottom:6px}
+.updated{color:#666;font-size:12px;margin-bottom:28px}
+h2{font-size:15px;color:#fff;font-weight:500;margin:30px 0 8px}
+p,li{color:#aaa}
+p{margin-bottom:12px}
+ul,ol{padding-left:22px;margin-bottom:12px}
+li{margin-bottom:6px}
+a{color:#fff}
+strong{color:#fff;font-weight:500}
+.box{border:1px solid rgba(255,255,255,.15);padding:20px 22px;margin:18px 0}
+.box p:last-child{margin-bottom:0}
+.big{font-size:18px;color:#fff}
+details{border-bottom:1px solid rgba(255,255,255,.1);padding:14px 0}
+summary{cursor:pointer;color:#fff;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+ ";color:#666}
+details[open] summary::before{content:"– "}
+details p{margin:10px 0 0}
+@media (max-width:600px){ .top a{font-size:32px;letter-spacing:8px} h1{font-size:20px} }
