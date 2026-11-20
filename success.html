@@ -96,7 +96,8 @@ function showCard(d){
       p.append(a); box.append(p);
     }
   });
-  if(d.redeem) box.append(el("div", "redeem", d.redeem));
+  // Reloadly's text sometimes runs words together ("go toRoblox.com"), so add the missing space.
+  if(d.redeem) box.append(el("div", "redeem", d.redeem.replace(/\b(to|at|visit|on)(?=[A-Z])/g, "$1 ")));
 }
 
 async function poll(){
