@@ -9,3 +9,5 @@ Digital gift card store at [noirgc.com](https://www.noirgc.com).
 - `assets/` – shared styles, footer, icons
 
 Keys and settings live in Vercel → Settings → Environment Variables, never in this repo.
+
+Testing: while the Stripe keys are `*_test_*` and `RELOADLY_MODE` is `sandbox`, pay with card `4242 4242 4242 4242` (any future date, any CVC). Codes delivered in sandbox are fake.
