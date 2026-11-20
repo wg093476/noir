@@ -53,7 +53,11 @@ font-family:inherit;font-size:13px;cursor:pointer;
 
 <script>
 const box = document.getElementById("box");
-const sessionId = new URLSearchParams(location.search).get("session_id");
+const params = new URLSearchParams(location.search);
+const sessionId = params.get("session_id");
+const intentId = params.get("payment_intent");
+const orderQuery = sessionId ? "session_id=" + encodeURIComponent(sessionId)
+  : intentId ? "payment_intent=" + encodeURIComponent(intentId) : null;
 const started = Date.now();
 
 function el(tag, cls, text){
@@ -93,9 +97,16 @@ function showCard(d){
 }
 
 async function poll(){
-  if(!sessionId){ message("Order not found", "This link is missing its order number."); return; }
+  if(new URLSearchParams(location.search).get("crypto")){
+    return message("Crypto payment sent",
+      "Once the network confirms it — usually a few minutes for ETH, USDT and USDC, and 10–60 minutes for Bitcoin — your code is emailed to you automatically. You can close this page.");
+  }
+  if(params.get("redirect_status") === "failed"){
+    return message("Payment didn't go through", "You haven't been charged. Go back and try again.");
+  }
+  if(!orderQuery){ message("Order not found", "This link is missing its order number."); return; }
   try{
-    const r = await fetch("/api/order?session_id=" + encodeURIComponent(sessionId));
+    const r = await fetch("/api/order?" + orderQuery);
     const d = await r.json();
     if(d.state === "done") return showCard(d);
     if(d.state === "refunded")

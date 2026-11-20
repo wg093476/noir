@@ -120,6 +120,33 @@ background:#fff;color:#000;border:none;cursor:pointer;
 font-family:inherit;font-size:15px;
 }
 .pay:disabled{opacity:.4;cursor:default}
+.express{width:260px;max-width:100%;margin:0 auto;display:none}
+.express.on{display:block}
+.mock-wallet{
+display:block;width:100%;height:48px;margin-bottom:8px;border:none;border-radius:6px;
+font-family:-apple-system,system-ui,sans-serif;font-size:17px;font-weight:600;cursor:pointer;
+}
+.or{display:none;color:#555;font-size:11px;margin:14px auto;width:260px;max-width:100%;
+align-items:center;gap:10px}
+.or.on{display:flex}
+.or::before,.or::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12)}
+.pay.secondary{background:#111;color:#fff;border:1px solid rgba(255,255,255,.15)}
+.pay-crypto{
+display:none;width:260px;max-width:100%;padding:13px;margin-top:10px;
+background:#111;color:#fff;border:1px solid rgba(255,255,255,.15);cursor:pointer;
+font-family:inherit;font-size:14px;
+}
+.pay-crypto:disabled{opacity:.4;cursor:default}
+.crypto-box{display:none;margin:14px auto 0;width:260px;max-width:100%}
+.crypto-box input{
+width:100%;padding:11px;background:transparent;color:#fff;
+border:1px solid rgba(255,255,255,.2);font-family:inherit;font-size:13px;outline:none;text-align:center;
+}
+.crypto-box .hint{color:#666;font-size:11px;margin:8px 0;line-height:1.6}
+.crypto-box button{
+width:100%;padding:12px;background:#fff;color:#000;border:none;cursor:pointer;
+font-family:inherit;font-size:14px;
+}
 .methods{margin-top:12px;color:#555;font-size:11px}
 .back{
 margin-top:22px;background:none;border:none;color:#666;
@@ -134,6 +161,7 @@ font-family:inherit;font-size:12px;cursor:pointer;
 .card{padding:28px 18px}
 }
 </style>
+<script src="https://js.stripe.com/v3/" async></script>
 </head>
 
 <body>
@@ -165,8 +193,16 @@ font-family:inherit;font-size:12px;cursor:pointer;
   <input class="custom" id="custom" inputmode="decimal" placeholder="$0">
   <div class="breakdown" id="breakdown"></div>
   <div class="eta">Delivered in under 30 seconds</div>
+  <div class="express" id="express"></div>
+  <div class="or" id="or">or</div>
   <button class="pay" id="pay" disabled>Choose an amount</button>
-  <div class="methods">Apple Pay • Google Pay • Card — secure checkout by Stripe</div>
+  <button class="pay-crypto" id="payCrypto" disabled>Pay with crypto · BTC/ETH</button>
+  <div class="crypto-box" id="cryptoBox">
+    <input id="cryptoEmail" type="email" placeholder="your@email.com" autocomplete="email">
+    <div class="hint">Your code is emailed once the payment confirms on the blockchain.</div>
+    <button id="cryptoGo">Continue to crypto payment</button>
+  </div>
+  <div class="methods">Secure payments by Stripe</div>
   <div class="error" id="error"></div>
   <button class="back" id="back">← back</button>
 </div>
@@ -203,6 +239,8 @@ animateText();
 /* ---------- catalog ---------- */
 let catalog = null;
 let catalogPromise = null;
+let cryptoOn = false;
+let stripeKey = null;
 
 /* Preview mode: when you open this file by double-clicking it (file:///),
    there's no backend, so show sample cards. Checkout only works on noirgc.com. */
@@ -217,11 +255,11 @@ const SAMPLE = [
 ];
 
 function loadCatalog(){
-  if(PREVIEW){ catalog = SAMPLE; return Promise.resolve(SAMPLE); }
+  if(PREVIEW){ catalog = SAMPLE; cryptoOn = true; return Promise.resolve(SAMPLE); }
   if(!catalogPromise){
     catalogPromise = fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => (catalog = d.products))
+      .then(d => { cryptoOn = !!d.crypto; stripeKey = d.stripeKey || null; return (catalog = d.products); })
       .catch(() => {
         catalogPromise = null;
         $("status").textContent = "Store is offline right now — try again in a minute.";
@@ -328,6 +366,8 @@ function openProduct(p, wanted){
   art.textContent = p.logo ? "" : p.brand.toUpperCase();
   $("name").textContent = p.name;
   $("error").textContent = "";
+  $("payCrypto").style.display = cryptoOn ? "inline-block" : "none";
+  $("cryptoBox").style.display = "none";
 
   const amounts = $("amounts");
   amounts.innerHTML = "";
@@ -366,7 +406,10 @@ function selectAmount(a){
   $("error").textContent = "";
 
   const ok = a && (product.type === "fixed" ? product.amounts.includes(a) : a >= product.min && a <= product.max);
+  $("payCrypto").disabled = !ok;
+  showExpress(false);
   if(!ok){
+    $("cryptoBox").style.display = "none";
     pay.disabled = true;
     pay.textContent = product.type === "range" && a ? `Enter $${product.min} – $${product.max}` : "Choose an amount";
     breakdown.innerHTML = "";
@@ -389,8 +432,10 @@ function selectAmount(a){
       if(amount !== a) return;
       breakdown.innerHTML =
         `Gift card <b>$${q.face.toFixed(2)}</b> &nbsp;·&nbsp; Service fee <b>$${q.fee.toFixed(2)}</b>`;
-      pay.textContent = `Pay $${q.total.toFixed(2)}`;
       pay.disabled = false;
+      const wallets = await showExpress(true, Math.round(q.total * 100), a);
+      pay.classList.toggle("secondary", wallets);
+      pay.textContent = wallets ? `Pay with card · $${q.total.toFixed(2)}` : `Pay $${q.total.toFixed(2)}`;
     }catch(err){
       pay.textContent = "Unavailable";
       $("error").textContent = err.message || "Couldn't get a price.";
@@ -420,6 +465,131 @@ $("pay").addEventListener("click", async () => {
     selectAmount(amount);
   }
 });
+
+$("payCrypto").addEventListener("click", () => {
+  const box = $("cryptoBox");
+  box.style.display = box.style.display === "block" ? "none" : "block";
+  if(box.style.display === "block") $("cryptoEmail").focus();
+});
+
+async function cryptoCheckout(){
+  const email = $("cryptoEmail").value.trim();
+  const go = $("cryptoGo");
+  $("error").textContent = "";
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){
+    $("error").textContent = "Enter your email — that's where the code is sent.";
+    return;
+  }
+  if(PREVIEW){
+    $("error").textContent = "Preview mode — crypto checkout works once these files are live on noirgc.com.";
+    return;
+  }
+  go.disabled = true;
+  go.textContent = "Opening…";
+  try{
+    const r = await fetch("/api/crypto-checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ productId: product.id, amount, email })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.url) throw new Error(d.error);
+    location.href = d.url;
+  }catch(err){
+    $("error").textContent = err.message || "Crypto checkout isn't available right now.";
+  }finally{
+    go.disabled = false;
+    go.textContent = "Continue to crypto payment";
+  }
+}
+$("cryptoGo").addEventListener("click", cryptoCheckout);
+$("cryptoEmail").addEventListener("keydown", (e) => { if(e.key === "Enter") cryptoCheckout(); });
+
+/* ---------- Apple Pay / Google Pay / Link, right on the page ---------- */
+let stripeJs = null, elements = null, express = null;
+let walletsAvailable = false;
+let expressAmount = null; // the gift card amount the wallet sheet is charging for
+let walletsKnown = null;  // resolves once Stripe knows which buttons this device can show
+
+function showExpress(on, cents, giftAmount){
+  const box = $("express");
+  if(!on){ box.classList.remove("on"); $("or").classList.remove("on"); return Promise.resolve(false); }
+  expressAmount = giftAmount;
+
+  if(PREVIEW){
+    if(!box.children.length){
+      box.innerHTML =
+        '<button class="mock-wallet" style="background:#fff;color:#000">Apple Pay</button>' +
+        '<button class="mock-wallet" style="background:#fff;color:#000">Google Pay</button>';
+      [...box.children].forEach(b => b.onclick = () =>
+        ($("error").textContent = "Preview mode — Apple Pay and Google Pay work once the site is live with Stripe keys."));
+    }
+    box.classList.add("on"); $("or").classList.add("on");
+    return Promise.resolve(true);
+  }
+
+  if(!stripeKey || !window.Stripe) return Promise.resolve(false);
+  if(!elements){
+    stripeJs = Stripe(stripeKey);
+    elements = stripeJs.elements({ mode: "payment", amount: cents, currency: "usd", appearance: { theme: "night" } });
+    express = elements.create("expressCheckout", {
+      emailRequired: true, // the code is emailed, and wallets don't share email unless asked
+      buttonType: { applePay: "buy", googlePay: "buy" },
+      buttonTheme: { applePay: "white", googlePay: "white" },
+      buttonHeight: 48,
+      layout: { maxColumns: 1, maxRows: 4, overflow: "auto" }
+    });
+    walletsKnown = new Promise(resolve => {
+      express.on("ready", ({ availablePaymentMethods }) => {
+        walletsAvailable = !!availablePaymentMethods && Object.values(availablePaymentMethods).some(Boolean);
+        resolve(walletsAvailable);
+      });
+      setTimeout(() => resolve(walletsAvailable), 4000);
+    });
+    express.on("confirm", onWalletConfirm);
+    express.mount("#express");
+  }else{
+    elements.update({ amount: cents });
+  }
+  return walletsKnown.then(has => {
+    box.classList.toggle("on", has);
+    $("or").classList.toggle("on", has);
+    return has;
+  });
+}
+
+async function onWalletConfirm(event){
+  $("error").textContent = "";
+  const fail = (msg) => {
+    $("error").textContent = msg;
+    try{ event.paymentFailed({ reason: "fail" }); }catch(e){}
+  };
+  const { error: submitError } = await elements.submit();
+  if(submitError) return fail(submitError.message);
+
+  let clientSecret;
+  try{
+    const r = await fetch("/api/intent", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ productId: product.id, amount: expressAmount, email: event.billingDetails?.email })
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error);
+    clientSecret = d.clientSecret;
+  }catch(err){
+    return fail(err.message || "Payment isn't available right now.");
+  }
+
+  const { error, paymentIntent } = await stripeJs.confirmPayment({
+    elements,
+    clientSecret,
+    confirmParams: { return_url: location.origin + "/success.html" },
+    redirect: "if_required"
+  });
+  if(error) return fail(error.message);
+  location.href = "/success.html?payment_intent=" + encodeURIComponent(paymentIntent.id);
+}
 
 function showSearch(){
   $("card").style.display = "none";
