@@ -930,7 +930,7 @@ let me = null;
 const money = (n) => "$" + Number(n).toLocaleString("en-US");
 async function loadMe(){
   if(PREVIEW) return;
-  try{ me = await (await fetch("/api/me", { cache: "no-store" })).json(); }catch(e){ me = null; }
+  try{ me = await (await fetch("/api/account", { cache: "no-store" })).json(); }catch(e){ me = null; }
   renderAcct();
 }
 function renderAcct(){
@@ -982,7 +982,7 @@ async function siSubmit(){
   go.disabled = true;
   try{
     if(siStep === "email"){
-      const r = await fetch("/api/auth-start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
+      const r = await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "start", email }) });
       const d = await r.json();
       if(!r.ok) throw new Error(d.error);
       siStep = "code";
@@ -991,7 +991,7 @@ async function siSubmit(){
       $("signinSub").textContent = "We sent a 6-digit code to " + email + ". Check spam if it's not there.";
       go.textContent = "Sign in";
     }else{
-      const r = await fetch("/api/auth-verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, code: $("siCode").value }) });
+      const r = await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "verify", email, code: $("siCode").value }) });
       const d = await r.json();
       if(!r.ok) throw new Error(d.error);
       $("signin").hidden = true;
@@ -1008,7 +1008,7 @@ $("siGo").addEventListener("click", siSubmit);
 $("siEmail").addEventListener("keydown", (e) => { if(e.key === "Enter") siSubmit(); });
 $("siCode").addEventListener("keydown", (e) => { if(e.key === "Enter") siSubmit(); });
 async function signOut(){
-  try{ await fetch("/api/logout", { method: "POST" }); }catch(e){}
+  try{ await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); }catch(e){}
   await loadMe();
   if(product && $("card").style.display === "block") selectAmount(amount);
 }
