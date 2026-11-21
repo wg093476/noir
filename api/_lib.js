@@ -110,6 +110,7 @@ export async function getCatalog() {
         name: p.productName,
         brand: p.brand?.brandName || p.productName,
         logo: (p.logoUrls || [])[0] || null,
+        category: p.category?.name || null,
         type: isRange ? "range" : "fixed",
         amounts: isRange ? [] : fixed,
         min: isRange ? Number(p.minRecipientDenomination) : null,
