@@ -37,7 +37,7 @@ font-family:'JetBrains Mono',monospace;
 .container{
 width:90%;max-width:1100px;text-align:center;
 flex:1;display:flex;flex-direction:column;justify-content:center;
-padding:48px 0 0;
+padding:48px 0 60px;
 }
 
 .logo{
@@ -194,8 +194,57 @@ font-family:inherit;font-size:12px;cursor:pointer;
 .back:hover{color:#fff}
 .error{color:#ff6b6b;font-size:13px;margin-top:14px;min-height:16px}
 
+/* trust row */
+.trust{
+display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+width:100%;max-width:760px;margin:30px auto 0;
+}
+.trust div{
+border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 10px;
+color:#9a9a9a;font-size:11px;line-height:1.6;
+}
+.trust b{display:block;color:#fff;font-weight:500;font-size:12px;margin-bottom:2px}
+.paywith{margin-top:16px;color:#555;font-size:11px;letter-spacing:.5px}
+
+/* how it works */
+.steps{display:flex;justify-content:center;gap:28px;margin:54px auto 0;max-width:760px;flex-wrap:wrap}
+.steps div{color:#777;font-size:12px;max-width:200px}
+.steps span{display:block;font-family:'Pixelify Sans',sans-serif;font-size:22px;color:#fff;margin-bottom:6px}
+
+/* browse all */
+.browse{width:100%;max-width:1000px;margin:64px auto 0;text-align:left}
+.browse h2{font-family:'Pixelify Sans',sans-serif;font-weight:500;font-size:26px;letter-spacing:3px;text-align:center}
+.browse .sub{color:#666;font-size:12px;text-align:center;margin:8px 0 22px}
+.cats{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:22px}
+.cats button{
+padding:8px 14px;background:#0d0d0d;color:#999;border:1px solid rgba(255,255,255,.12);
+border-radius:999px;font-family:inherit;font-size:12px;cursor:pointer;
+}
+.cats button.on,.cats button:hover{background:#fff;color:#000;border-color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
+.gcard{
+background:none;border:none;cursor:pointer;text-align:left;color:#fff;font-family:inherit;padding:0;
+}
+.gcard .pic{
+aspect-ratio:1.6;border-radius:10px;overflow:hidden;background:#0d0d0d;
+border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;
+font-family:'Pixelify Sans',sans-serif;color:#666;letter-spacing:2px;font-size:15px;
+transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.gcard .pic img{width:100%;height:100%;object-fit:cover;display:block}
+.gcard:hover .pic,.gcard:focus-visible .pic{transform:translateY(-3px);border-color:rgba(255,255,255,.35);box-shadow:0 10px 30px rgba(255,255,255,.06)}
+.gcard:focus-visible{outline:none}
+.gcard .t{font-size:13px;margin-top:9px}
+.gcard .p{font-size:11px;color:#777;margin-top:2px}
+.empty{color:#666;font-size:13px;text-align:center;padding:30px 0}
+.amounts button small{display:block;font-size:10px;color:#888;margin-top:3px}
+.amounts button.on small{color:#444}
+.assure{color:#666;font-size:11px;line-height:1.7;margin-top:14px}
+
 @media (max-width:600px){
 .tiles{grid-template-columns:repeat(2,1fr);gap:10px}
+.trust{grid-template-columns:repeat(2,1fr)}
+.grid{grid-template-columns:repeat(2,1fr);gap:12px}
 .logo{font-size:44px;letter-spacing:10px}
 #search,.placeholder{font-size:20px}
 .card{padding:28px 18px}
@@ -222,7 +271,28 @@ font-family:inherit;font-size:12px;cursor:pointer;
   </div>
   <div class="status" id="status"></div>
   <div class="tiles loading" id="tiles" aria-label="Popular gift cards"></div>
-  <div class="brands">100+ brands · type any brand above</div>
+  <div class="brands"><a href="#all" id="browseLink" style="color:inherit">Browse every gift card ↓</a></div>
+
+  <div class="trust">
+    <div><b>Instant delivery</b>Your code appears on screen in seconds, plus a copy by email.</div>
+    <div><b>Secure checkout</b>Cards and wallets are processed by Stripe. We never see your card number.</div>
+    <div><b>Money-back promise</b>If a code can't be delivered, you're refunded automatically.</div>
+    <div><b>Real support</b>Questions? <a href="contact.html" style="color:#fff">support@noirgc.com</a></div>
+  </div>
+  <div class="paywith">Apple Pay · Google Pay · Visa · Mastercard · Amex · Discover · Crypto</div>
+
+  <div class="steps">
+    <div><span>01</span>Pick a gift card and amount</div>
+    <div><span>02</span>Pay with Apple Pay, Google Pay, card or crypto</div>
+    <div><span>03</span>Copy your code and redeem it right away</div>
+  </div>
+
+  <section class="browse" id="all">
+    <h2>ALL GIFT CARDS</h2>
+    <div class="sub" id="browseSub">Loading the catalog…</div>
+    <div class="cats" id="cats"></div>
+    <div class="grid" id="grid"></div>
+  </section>
 </div>
 
 <!-- product view -->
@@ -244,6 +314,7 @@ font-family:inherit;font-size:12px;cursor:pointer;
     <button id="cryptoGo">Continue to crypto payment</button>
   </div>
   <div class="methods">Secure payments by Stripe</div>
+  <div class="assure">Code shown instantly and emailed · Automatic refund if delivery fails</div>
   <div class="error" id="error"></div>
   <button class="back" id="back">← back</button>
 </div>
@@ -313,7 +384,7 @@ function loadCatalog(){
   }
   return catalogPromise;
 }
-loadCatalog().then(renderTiles);
+loadCatalog().then(() => { renderTiles(); renderBrowse(); });
 
 /* ---------- popular brand tiles ---------- */
 const FEATURED = ["Roblox", "Steam", "Fortnite", "Xbox", "PlayStation", "Nintendo", "Apple", "Amazon"];
@@ -339,7 +410,7 @@ function renderTiles(){
     b.addEventListener("click", async () => {
       const wasEmpty = !catalog;
       await loadCatalog();                     // retries if the store was offline
-      if(wasEmpty && catalog){ renderTiles(); $("status").textContent = ""; }
+      if(wasEmpty && catalog){ renderTiles(); renderBrowse(); $("status").textContent = ""; }
       const hit = search(name)[0];
       if(hit) openProduct(hit, null);
     });
@@ -385,8 +456,28 @@ function search(q){
     })
     .filter(Boolean)
     .sort((a, b) => b.score - a.score)
+    .filter((x, i, arr) => arr.findIndex(y => famKey(y.p) === famKey(x.p)) === i) // one per family
     .slice(0, 6)
     .map(x => x.p);
+}
+
+/* ---------- product families ----------
+   Some brands are sold as several products that differ only by size
+   (e.g. Fortnite 1,000 / 2,800 / 5,000 / 13,500 V-Bucks). Group them so the
+   card page offers every size instead of just one. */
+const famKey = (p) => p.type === "fixed" ? p.brand + "|" + norm(p.name.replace(/\d[\d,.]*/g, " ")) : "id" + p.id;
+function family(p){
+  if(!catalog) return [p];
+  const k = famKey(p);
+  const f = catalog.filter(x => famKey(x) === k);
+  return f.length ? f : [p];
+}
+// "Fortnite (Standard Edition) 5000-V-Bucks US" -> "5,000 V-Bucks"
+function sizeLabel(name){
+  const m = name.match(/(\d[\d,.]*)\s*-?\s*([A-Za-z][A-Za-z-]*)/);
+  if(!m || /^(us|usd)$/i.test(m[2])) return "";
+  const n = Number(m[1].replace(/,/g, ""));
+  return (isFinite(n) ? n.toLocaleString("en-US") : m[1]) + " " + m[2].replace(/-/g, m[2].includes("V-") ? "-" : " ");
 }
 
 /* ---------- suggestions ---------- */
@@ -456,7 +547,9 @@ function openProduct(p, wanted){
   const art = $("art");
   art.style.backgroundImage = p.logo ? `url("${p.logo.replace(/"/g, "%22")}")` : "none";
   art.textContent = p.logo ? "" : p.brand.toUpperCase();
-  $("name").textContent = p.name;
+  const fam = family(p);
+  const sizes = fam.length > 1 ? sizeLabel(p.name).replace(/^[\d,.]+\s*/, "") : "";
+  $("name").textContent = fam.length > 1 ? (p.brand + " " + sizes).trim() : p.name;
   $("error").textContent = "";
   $("payCrypto").style.display = cryptoOn ? "inline-block" : "none";
   $("cryptoBox").style.display = "none";
@@ -468,17 +561,24 @@ function openProduct(p, wanted){
   if(p.type === "fixed"){
     custom.style.display = "none";
     $("amountLabel").style.display = "none";
-    p.amounts.forEach(a => {
+    const options = [];
+    fam.forEach(m => m.amounts.forEach(a => options.push({ a, m, sub: fam.length > 1 ? sizeLabel(m.name) : "" })));
+    options.sort((x, y) => x.a - y.a);
+    options.forEach(o => {
       const b = document.createElement("button");
-      b.textContent = "$" + a;
-      b.addEventListener("click", () => selectAmount(a));
+      b.dataset.a = o.a;
+      b.dataset.pid = o.m.id;
+      b.textContent = "$" + o.a;
+      if(o.sub){ const sm = document.createElement("small"); sm.textContent = o.sub; b.appendChild(sm); }
+      b.addEventListener("click", () => { product = o.m; selectAmount(o.a); });
       amounts.appendChild(b);
     });
     // pick the closest amount to what they typed
     const pick = wanted
-      ? p.amounts.reduce((best, a) => Math.abs(a - wanted) < Math.abs(best - wanted) ? a : best, p.amounts[0])
+      ? options.reduce((best, o) => Math.abs(o.a - wanted) < Math.abs(best.a - wanted) ? o : best, options[0])
       : null;
-    selectAmount(pick);
+    if(pick) product = pick.m;
+    selectAmount(pick ? pick.a : null);
   }else{
     custom.style.display = "block";
     $("amountLabel").style.display = "block";
@@ -487,12 +587,14 @@ function openProduct(p, wanted){
     custom.oninput = () => selectAmount(Number(custom.value.replace(/[^0-9.]/g, "")) || null);
     selectAmount(Number(custom.value) || null);
   }
+  lastScroll = window.scrollY;
+  window.scrollTo(0, 0);
   history.pushState({ view: "card" }, "", "#" + p.id);
 }
 
 function selectAmount(a){
   amount = a;
-  [...$("amounts").children].forEach(b => b.classList.toggle("on", b.textContent === "$" + a));
+  [...$("amounts").children].forEach(b => b.classList.toggle("on", Number(b.dataset.a) === a && String(b.dataset.pid) === String(product.id)));
   const pay = $("pay");
   const breakdown = $("breakdown");
   $("error").textContent = "";
@@ -683,11 +785,100 @@ async function onWalletConfirm(event){
   location.href = "/success.html?payment_intent=" + encodeURIComponent(paymentIntent.id);
 }
 
+let lastScroll = 0;
 function showSearch(){
   $("card").style.display = "none";
   $("searchView").style.display = "block";
-  input.focus();
+  if(lastScroll > 200) window.scrollTo(0, lastScroll);   // back to where they were in the catalog
+  else input.focus();
 }
+
+/* ---------- browse every gift card ---------- */
+const CAT_ORDER = ["Gaming", "Shopping", "Entertainment", "Food & Drink", "Travel", "More"];
+const CAT_RULES = [
+  ["Gaming", /roblox|steam|xbox|playstation|nintendo|fortnite|riot|valorant|league of legends|minecraft|razer|battle\.?net|pubg|free fire|apex|candy crush|game|jawaker|netdragon|twitch|garena|ea play/i],
+  ["Food & Drink", /starbucks|coffee|doordash|uber eats|domino|pizza|grubhub|steak|burger|chipotle|dunkin|tea leaf|restaurant|panera|subway/i],
+  ["Entertainment", /netflix|spotify|hulu|paramount|disney|regal|amc|cinema|apple|itunes|google play|youtube|audible|fandango|peacock|max\b/i],
+  ["Travel", /airbnb|cruise|hotel|uber|lyft|airline|travel|expedia|southwest/i],
+  ["Shopping", /amazon|target|walmart|nike|h&m|ulta|sephora|saks|abercrombie|banana republic|under armour|best buy|ebay|gap|macy|old navy|home depot|lowe|nordstrom|adidas|mastercard|visa/i],
+];
+function categoryOf(p){
+  const c = (p.category || "").toLowerCase();
+  if(/gam/.test(c)) return "Gaming";
+  if(/food|restaurant|dining|grocer/.test(c)) return "Food & Drink";
+  if(/entertain|stream|music|movie|media/.test(c)) return "Entertainment";
+  if(/travel|hotel|flight/.test(c)) return "Travel";
+  if(/shop|retail|fashion|beauty|cloth|electron|department/.test(c)) return "Shopping";
+  for(const [name, re] of CAT_RULES) if(re.test(p.brand + " " + p.name)) return name;
+  return "More";
+}
+let brandList = [];
+let activeCat = "All";
+function renderBrowse(){
+  const sub = $("browseSub");
+  if(!catalog || !catalog.length){
+    sub.textContent = catalogFailed ? "The store is offline right now — try again in a minute." : "Loading the catalog…";
+    $("cats").innerHTML = ""; $("grid").innerHTML = "";
+    return;
+  }
+  const byBrand = new Map();
+  catalog.forEach(p => {
+    if(!byBrand.has(p.brand)) byBrand.set(p.brand, []);
+    byBrand.get(p.brand).push(p);
+  });
+  brandList = [...byBrand.entries()].map(([brand, items]) => {
+    const pick = search(brand)[0] || items[0];
+    const from = Math.min(...items.map(x => x.type === "fixed" ? Math.min(...x.amounts) : x.min));
+    return { brand, pick, from, cat: categoryOf(pick), logo: (items.find(x => x.logo) || {}).logo };
+  }).sort((a, b) => {
+    const fa = FEATURED.indexOf(a.brand), fb = FEATURED.indexOf(b.brand);
+    if(fa !== fb) return (fa < 0 ? 99 : fa) - (fb < 0 ? 99 : fb);
+    return a.brand.localeCompare(b.brand);
+  });
+  sub.textContent = brandList.length + " brands · prices in USD · delivered instantly";
+  const cats = ["All", ...CAT_ORDER.filter(c => brandList.some(b => b.cat === c))];
+  const catBox = $("cats");
+  catBox.innerHTML = "";
+  cats.forEach(c => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = c;
+    b.className = c === activeCat ? "on" : "";
+    b.addEventListener("click", () => { activeCat = c; renderBrowse(); });
+    catBox.appendChild(b);
+  });
+  const grid = $("grid");
+  grid.innerHTML = "";
+  brandList.filter(b => activeCat === "All" || b.cat === activeCat).forEach(b => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "gcard";
+    card.setAttribute("aria-label", b.brand + " gift card");
+    const pic = document.createElement("div");
+    pic.className = "pic";
+    if(b.logo){
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.alt = "";
+      img.src = b.logo;
+      img.onerror = () => { img.remove(); pic.textContent = b.brand.toUpperCase(); };
+      pic.appendChild(img);
+    }else pic.textContent = b.brand.toUpperCase();
+    const t = document.createElement("div");
+    t.className = "t";
+    t.textContent = b.brand;
+    const pr = document.createElement("div");
+    pr.className = "p";
+    pr.textContent = "from $" + (Number.isInteger(b.from) ? b.from : b.from.toFixed(2));
+    card.append(pic, t, pr);
+    card.addEventListener("click", () => openProduct(b.pick, null));
+    grid.appendChild(card);
+  });
+}
+$("browseLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  $("all").scrollIntoView({ behavior: "smooth" });
+});
 $("back").addEventListener("click", () => history.back());
 $("home").addEventListener("click", () => { if($("card").style.display === "block") history.back(); });
 window.addEventListener("popstate", showSearch);
