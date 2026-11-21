@@ -30,6 +30,7 @@
   <li><strong>Order details</strong>: the brand, amount, price, time and payment status.</li>
   <li><strong>Payment details</strong> are handled by Stripe or NOWPayments. We never see or store your full card number, and we never hold your crypto wallet keys.</li>
   <li><strong>Account and limit data</strong>: if you sign in, your email and account level. To enforce daily spending limits we keep a running total of each day's purchases linked to your account, or for guests to a random browser ID (a cookie), a scrambled version of your IP address, your email and a fingerprint of your card from Stripe. These totals are deleted after 48 hours.</li>
+  <li><strong>ID check (only if you ask to be Verified)</strong>: your full legal name, the type of ID, a photo of your ID and a selfie holding it. The photos are encrypted and only NOIR staff can view them. They're deleted as soon as your check is decided, and after 30 days at most. If you're approved we keep your name (to match the name on your card when you pay) and a scrambled fingerprint of your ID number so one ID can't be used for two accounts. We never keep the ID number itself, and we don't use outside ID-checking companies.</li>
   <li><strong>Cookies</strong>: one to keep you signed in and one random browser ID for spending limits. No advertising or tracking cookies.</li>
   <li><strong>Basic usage data</strong>: anonymous page-view counts through Vercel Web Analytics, which doesn't use cookies. We also keep standard server logs, such as error logs and searches that found no card, to keep the site running.</li>
 </ul>
@@ -41,7 +42,7 @@
   <li><strong>NOWPayments</strong>: crypto payments</li>
   <li><strong>Reloadly</strong>: our gift card supplier, which receives your email to deliver the code</li>
   <li><strong>Vercel</strong>: hosting</li>
-  <li><strong>Upstash</strong>: our database for accounts and daily limits</li>
+  <li><strong>Upstash</strong>: our database for accounts, daily limits and (encrypted) ID check photos</li>
   <li><strong>Resend</strong>: sends sign-in codes by email</li>
 </ul>
 <p>We don't sell your information or use it for ads.</p>

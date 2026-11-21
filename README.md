@@ -15,4 +15,4 @@ Crypto (BTC, ETH, USDT and more) goes through NOWPayments; it uses their sandbox
 
 Accounts and daily limits: guests $500/day, signed-in accounts $1,500/day, verified $5,000/day (`api/_limits.js`, `api/account.js`).
 They switch on when the Upstash database is connected (`KV_REST_API_URL`, `KV_REST_API_TOKEN`); sign-in codes are emailed through Resend (`RESEND_API_KEY`, sending domain noirgc.com).
-To make someone verified, set `user:<email>` to `{"tier":"verified"}` in Upstash.
+Verified: customers send an ID photo + selfie from the store; review them at noirgc.com/admin.html while signed in with an admin email (`ADMIN_EMAILS`, default support@noirgc.com). Photos are encrypted, deleted on decision (30 days max), and the verified limit only applies when the card is in the verified name (`api/_verify.js`).

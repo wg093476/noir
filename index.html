@@ -258,6 +258,16 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .modal #siGo:disabled{opacity:.5}
 .modal .perks{color:#666;font-size:11px;line-height:1.7;margin-top:16px}
 .limit-note{color:#777;font-size:11px;margin:2px 0 14px;line-height:1.7}
+.modal select{display:block;width:100%;padding:12px;margin-bottom:10px;background:#000;color:#fff;border:1px solid rgba(255,255,255,.25);font-family:inherit;font-size:14px;text-align:center;outline:none}
+.modal .filebtn{display:block;border:1px dashed rgba(255,255,255,.3);padding:12px;margin-bottom:10px;font-size:12px;color:#ccc;cursor:pointer}
+.modal .filebtn input{display:none}
+.modal .filebtn span{display:block;color:#7c7;font-size:11px;margin-top:4px}
+.modal .filebtn span:empty{display:none}
+.modal .consent{display:flex;align-items:flex-start;gap:10px;text-align:left;font-size:11px;color:#999;line-height:1.6;margin:6px 0 14px}
+.modal .consent input{width:auto;display:inline;margin:3px 0 0}
+.modal .consent a{color:#ccc}
+.modal #idvGo{width:100%;padding:13px;background:#fff;color:#000;border:none;font-family:inherit;font-size:14px;cursor:pointer}
+.modal #idvGo:disabled{opacity:.5}
 .linkbtn{background:none;border:none;color:#fff;text-decoration:underline;font-family:inherit;font-size:11px;cursor:pointer;padding:0}
 
 @media (max-width:600px){
@@ -287,6 +297,27 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <div class="error" id="siErr"></div>
     <div class="perks" id="siPerks"></div>
     <button class="back" id="siClose">close</button>
+  </div>
+</div>
+
+<div class="modal" id="idv" hidden>
+  <div class="box" role="dialog" aria-label="Get verified">
+    <div class="mtitle">GET VERIFIED</div>
+    <div class="msub" id="idvSub">Raise your limit to $5,000 a day. A NOIR team member checks your ID by hand, usually within a day.</div>
+    <input id="idvName" placeholder="Full legal name, as on your ID" autocomplete="name" maxlength="80">
+    <select id="idvType">
+      <option value="">Type of ID</option>
+      <option value="license">Driver's license</option>
+      <option value="state_id">State ID</option>
+      <option value="passport">Passport</option>
+    </select>
+    <label class="filebtn">Photo of the front of your ID<input id="idvPhoto" type="file" accept="image/*" capture="environment"><span id="idvPhotoOk"></span></label>
+    <label class="filebtn">Selfie holding your ID<input id="idvSelfie" type="file" accept="image/*" capture="user"><span id="idvSelfieOk"></span></label>
+    <label class="consent"><input type="checkbox" id="idvConsent"><span>I agree NOIR can look at these photos to confirm who I am. They're encrypted and deleted as soon as my check is done (30 days at most). See the <a href="privacy.html" target="_blank">privacy policy</a>.</span></label>
+    <button id="idvGo">Send for review</button>
+    <div class="error" id="idvErr"></div>
+    <div class="perks">Pay with a card in your own name to use the higher limit.</div>
+    <button class="back" id="idvClose">close</button>
   </div>
 </div>
 
@@ -939,9 +970,16 @@ function renderAcct(){
   if(me && me.accounts){
     if(me.signedIn){
       const who = document.createElement("span"); who.className = "who"; who.textContent = me.email;
-      const tier = document.createElement("span"); tier.className = "tier"; tier.textContent = me.tier === "verified" ? "VERIFIED" : "ACCOUNT";
+      const tier = document.createElement("span"); tier.className = "tier";
+      const vs = me.verification && me.verification.status;
+      tier.textContent = me.tier === "verified" ? "VERIFIED" : vs === "pending" ? "ID IN REVIEW" : "ACCOUNT";
       const out = document.createElement("button"); out.textContent = "Sign out"; out.onclick = signOut;
-      box.append(who, tier, out);
+      box.append(who, tier);
+      if(me.admin){
+        const a = document.createElement("a"); a.href = "admin.html"; a.textContent = "Review IDs"; a.style.color = "#fff";
+        box.append(a);
+      }
+      box.append(out);
     }else{
       const b = document.createElement("button"); b.textContent = "Sign in"; b.onclick = openSignin;
       box.appendChild(b);
@@ -959,8 +997,82 @@ function updateLimitNote(){
     const a = document.createElement("button");
     a.className = "linkbtn"; a.textContent = `Sign in for ${money(me.accountLimit)}/day`; a.onclick = openSignin;
     n.appendChild(a);
+  }else if(me.tier !== "verified" && me.verification){
+    n.append(" · ");
+    if(me.verification.status === "pending"){
+      n.append("ID in review");
+    }else{
+      const a = document.createElement("button");
+      a.className = "linkbtn"; a.textContent = `Get verified for ${money(me.verifiedLimit)}/day`; a.onclick = openVerify;
+      n.appendChild(a);
+    }
   }
 }
+
+/* ---------- ID verification (Verified level) ---------- */
+let idvFiles = { photo: null, selfie: null };
+function openVerify(){
+  $("idv").hidden = false;
+  $("idvErr").textContent = "";
+  const v = me && me.verification;
+  $("idvSub").textContent = (v && v.status === "rejected" ? "Your last check didn't go through: " + v.reason + " " : "") +
+    `Raise your limit to ${money(me.verifiedLimit)} a day. A NOIR team member checks your ID by hand, usually within a day.`;
+}
+$("idvClose").addEventListener("click", () => ($("idv").hidden = true));
+$("idv").addEventListener("click", (e) => { if(e.target.id === "idv") $("idv").hidden = true; });
+
+// Shrink a photo to a JPEG under ~600 KB so it uploads fast and stores small.
+function shrinkPhoto(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, 1600 / Math.max(w, h));
+      w = Math.round(w * scale); h = Math.round(h * scale);
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      let q = 0.85, data = c.toDataURL("image/jpeg", q);
+      while(data.length > 800000 && q > 0.4){ q -= 0.1; data = c.toDataURL("image/jpeg", q); }
+      data.length > 900000 ? reject(new Error("That photo is too big — try again.")) : resolve(data);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That file isn't a photo we can read.")); };
+    img.src = url;
+  });
+}
+for(const [inputId, key, okId] of [["idvPhoto", "photo", "idvPhotoOk"], ["idvSelfie", "selfie", "idvSelfieOk"]]){
+  $(inputId).addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    idvFiles[key] = null; $(okId).textContent = "";
+    if(!f) return;
+    try{ idvFiles[key] = await shrinkPhoto(f); $(okId).textContent = "✓ " + f.name; }
+    catch(err){ $("idvErr").textContent = err.message; }
+  });
+}
+$("idvGo").addEventListener("click", async () => {
+  const go = $("idvGo"), err = $("idvErr");
+  err.textContent = "";
+  if(!$("idvName").value.trim()) return (err.textContent = "Enter your full legal name.");
+  if(!$("idvType").value) return (err.textContent = "Choose the type of ID.");
+  if(!idvFiles.photo || !idvFiles.selfie) return (err.textContent = "Add both photos.");
+  if(!$("idvConsent").checked) return (err.textContent = "Please tick the box to agree to the ID check.");
+  go.disabled = true; go.textContent = "Sending…";
+  try{
+    const r = await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+      action: "id-submit", name: $("idvName").value, idType: $("idvType").value,
+      idPhoto: idvFiles.photo, selfie: idvFiles.selfie, consent: true }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || "Couldn't send your ID — try again.");
+    idvFiles = { photo: null, selfie: null };
+    $("idv").hidden = true;
+    await loadMe();
+  }catch(e){
+    err.textContent = e.message;
+  }finally{
+    go.disabled = false; go.textContent = "Send for review";
+  }
+});
 let siStep = "email";
 function openSignin(){
   siStep = "email";
