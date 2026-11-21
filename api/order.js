@@ -16,7 +16,10 @@ export async function GET(request) {
 
   try {
     const result = await run();
-    if (result.state !== "done") return json({ state: result.state }, 200, noStore);
+    if (result.state !== "done") {
+      const reason = result.reason || result.pi?.metadata?.noir_refund_reason || undefined;
+      return json({ state: result.state, reason }, 200, noStore);
+    }
 
     const meta = result.pi.metadata || {};
     const product = await findProduct(meta.productId);

@@ -1,6 +1,7 @@
 // POST /api/intent  { productId, amount, email }  ->  { clientSecret }
 // Used by the Apple Pay / Google Pay / Link buttons on the card page.
 import { findProduct, isValidAmount, priceFor, stripe, json } from "./_lib.js";
+import { buyer, remaining, limitMessage } from "./_limits.js";
 
 export async function POST(request) {
   let body;
@@ -20,6 +21,10 @@ export async function POST(request) {
     if (!product) return json({ error: "Gift card not found." }, 404);
     if (!isValidAmount(product, amount)) return json({ error: "That amount isn't available." }, 400);
 
+    const who = await buyer(request, email);
+    const left = await remaining(who.tier, who.ids);
+    if (amount > left) return json({ error: limitMessage(who.tier, left), limit: true }, 403);
+
     const { total } = priceFor(product, amount);
     const pi = await stripe("/payment_intents", {
       method: "POST",
@@ -29,7 +34,7 @@ export async function POST(request) {
         automatic_payment_methods: { enabled: true },
         receipt_email: email,
         description: `${product.name} — $${amount}`,
-        metadata: { productId: product.id, amount, email, noir_flow: "express" },
+        metadata: { productId: product.id, amount, email, noir_flow: "express", noir_tier: who.tier, noir_ids: who.ids.join("|") },
       },
     });
     return json({ clientSecret: pi.client_secret });

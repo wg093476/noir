@@ -3,6 +3,7 @@
 // No npm packages needed: everything uses Node's built-in fetch + crypto.
 
 import crypto from "node:crypto";
+import { accountsEnabled, reserve, release, normEmail } from "./_limits.js";
 
 // ---------- settings (from Vercel Environment Variables) ----------
 
@@ -15,7 +16,8 @@ export const settings = () => ({
   reloadlyMode: env("RELOADLY_MODE", "sandbox"), // "sandbox" or "live"
   serviceFeePercent: Number(env("SERVICE_FEE_PERCENT", "5")), // your markup in %
   serviceFeeFlat: Number(env("SERVICE_FEE_FLAT", "0.99")), // plus a flat fee in $
-  maxCardUsd: Number(env("MAX_CARD_USD", "100")), // biggest card one order can buy
+  // biggest card one order can buy: $500 once spending limits are on (database connected), else $100
+  maxCardUsd: Number(env("MAX_CARD_USD", accountsEnabled() ? "500" : "100")),
   country: env("STORE_COUNTRY", "US"),
 });
 
@@ -256,6 +258,22 @@ async function fulfillIntent(pi, email) {
     },
   });
 
+  // Daily spending limit. Counted against the buyer's account / browser / network (saved at
+  // checkout), their email and the card itself, so switching emails or devices doesn't help.
+  let counted = [];
+  if (accountsEnabled() && meta.noir_ids !== undefined) {
+    const tier = meta.noir_tier || "guest";
+    const ids = String(meta.noir_ids || "").split("|").filter(Boolean);
+    if (tier === "guest" && email) ids.push("e:" + normEmail(email));
+    const fp = await cardFingerprint(pi);
+    if (fp) ids.push("c:" + fp);
+    const unique = [...new Set(ids)];
+    if (!(await reserve(tier, unique, meta.amount))) {
+      return refundIntent(pi, "daily_limit", "Over the daily spending limit");
+    }
+    counted = unique;
+  }
+
   try {
     const order = await placeOrder({
       productId: meta.productId,
@@ -274,19 +292,35 @@ async function fulfillIntent(pi, email) {
       return { state: "processing", pi };
     }
     // Card could not be bought (out of stock, low wallet balance...). Give the money back.
-    await stripe("/refunds", {
-      method: "POST",
-      params: { payment_intent: pi.id, metadata: { reason: "reloadly_failed" } },
-      idempotencyKey: "refund-" + pi.id,
-    });
-    await stripe(`/payment_intents/${pi.id}`, {
-      method: "POST",
-      params: {
-        metadata: { noir_status: "refunded", noir_error: String(err.message).slice(0, 400) },
-      },
-    });
-    console.error("Order failed, refunded", pi.id, err.message, err.data);
-    return { state: "refunded", pi };
+    await release(counted, meta.amount).catch(() => {});
+    console.error("Order failed, refunding", pi.id, err.message, err.data);
+    return refundIntent(pi, "reloadly_failed", err.message);
+  }
+}
+
+async function refundIntent(pi, reason, message) {
+  await stripe("/refunds", {
+    method: "POST",
+    params: { payment_intent: pi.id, metadata: { reason } },
+    idempotencyKey: "refund-" + pi.id,
+  });
+  await stripe(`/payment_intents/${pi.id}`, {
+    method: "POST",
+    params: {
+      metadata: { noir_status: "refunded", noir_error: String(message || reason).slice(0, 400), noir_refund_reason: reason },
+    },
+  });
+  return { state: "refunded", reason, pi };
+}
+
+// The card's fingerprint is the same every time that card is used, whatever email or device.
+async function cardFingerprint(pi) {
+  try {
+    let pm = pi.payment_method;
+    if (pm && typeof pm === "string") pm = await stripe(`/payment_methods/${pm}`);
+    return pm?.card?.fingerprint || null;
+  } catch {
+    return null;
   }
 }
 

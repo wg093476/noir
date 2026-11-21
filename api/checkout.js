@@ -1,5 +1,6 @@
 // POST /api/checkout  { productId, amount }  ->  { url }  (Stripe Checkout page)
 import { findProduct, isValidAmount, priceFor, stripe, json } from "./_lib.js";
+import { buyer, remaining, limitMessage } from "./_limits.js";
 
 export async function POST(request) {
   let body;
@@ -14,6 +15,12 @@ export async function POST(request) {
     const product = await findProduct(body.productId);
     if (!product) return json({ error: "Gift card not found." }, 404);
     if (!isValidAmount(product, amount)) return json({ error: "That amount isn't available." }, 400);
+
+    // daily spending limit (checked again when the payment completes)
+    const who = await buyer(request);
+    const left = await remaining(who.tier, who.ids);
+    if (amount > left) return json({ error: limitMessage(who.tier, left), limit: true }, 403);
+    const limitMeta = { noir_tier: who.tier, noir_ids: who.ids.join("|") };
 
     const { total } = priceFor(product, amount);
     const site = process.env.SITE_URL || new URL(request.url).origin;
@@ -37,8 +44,9 @@ export async function POST(request) {
             },
           },
         },
+        customer_email: who.email || undefined,
         metadata: { productId: product.id, amount },
-        payment_intent_data: { metadata: { productId: product.id, amount } },
+        payment_intent_data: { metadata: { productId: product.id, amount, ...limitMeta } },
         success_url: `${site}/success.html?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${site}/`,
         expires_at: Math.floor(Date.now() / 1000) + 30 * 60,

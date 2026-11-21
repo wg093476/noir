@@ -5,6 +5,7 @@ import {
   verifyNowpaymentsSignature, parseCryptoOrderId, findProduct, priceFor,
   placeOrder, isDuplicateOrder, json,
 } from "./_lib.js";
+import { accountsEnabled, redis, reserve } from "./_limits.js";
 
 export async function POST(request) {
   const raw = await request.text();
@@ -45,6 +46,13 @@ export async function POST(request) {
     if (String(body.price_currency).toLowerCase() !== "usd" || !(paidUsd >= priceFor(product, order.amount).cost)) {
       console.error("Crypto amount too low — no card sent:", body.order_id, body.price_amount, body.price_currency);
       return json({ received: true, fulfilled: false });
+    }
+
+    // Count it toward the buyer's daily limit (it was checked before they paid).
+    if (accountsEnabled()) {
+      const saved = JSON.parse((await redis("GET", "crypto:" + body.order_id)) || "null");
+      if (saved) await reserve(saved.tier, saved.ids, order.amount, { force: true });
+      await redis("DEL", "crypto:" + body.order_id);
     }
 
     const result = await placeOrder({

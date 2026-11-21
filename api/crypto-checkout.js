@@ -4,6 +4,7 @@ import {
   findProduct, isValidAmount, priceFor, json,
   cryptoEnabled, cryptoSandbox, nowpayments, makeCryptoOrderId,
 } from "./_lib.js";
+import { accountsEnabled, buyer, remaining, limitMessage, redis } from "./_limits.js";
 
 export async function POST(request) {
   if (!cryptoEnabled()) return json({ error: "Crypto payments aren't set up yet." }, 503);
@@ -25,11 +26,20 @@ export async function POST(request) {
     if (!product) return json({ error: "Gift card not found." }, 404);
     if (!isValidAmount(product, amount)) return json({ error: "That amount isn't available." }, 400);
 
+    // Crypto can't be refunded automatically, so the daily limit is checked here, before paying.
+    const who = await buyer(request, email);
+    const left = await remaining(who.tier, who.ids);
+    if (amount > left) return json({ error: limitMessage(who.tier, left), limit: true }, 403);
+
     const { total } = priceFor(product, amount);
     const site = process.env.SITE_URL || new URL(request.url).origin;
     const orderId = makeCryptoOrderId(product.id, amount);
 
     const description = `${product.name} $${amount} | ${email}`;
+    if (accountsEnabled()) {
+      // remembered for the webhook, which counts the purchase once it's paid
+      await redis("SET", "crypto:" + orderId, JSON.stringify({ tier: who.tier, ids: who.ids }), "EX", 60 * 60 * 24 * 7);
+    }
 
     // TEST ONLY: in the NOWPayments sandbox, { test: "success" } asks NOWPayments to act out a
     // fully paid payment, so the whole flow (webhook -> card bought) can be checked without real
