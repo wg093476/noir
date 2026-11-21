@@ -3,12 +3,15 @@
 //   POST { action: "start",  email }      -> emails a 6-digit sign-in code
 //   POST { action: "verify", email, code} -> signs in (sets the session cookie)
 //   POST { action: "logout" }             -> signs out
+//   POST { action: "id-submit", name, idType, idPhoto, selfie, consent } -> sends ID for review (signed in)
 import crypto from "node:crypto";
 import { json } from "./_lib.js";
 import {
   accountsEnabled, buyer, remaining, tierLimit, readCookies, cookie,
   startSignIn, finishSignIn, endSession, normEmail, validEmail, clientIp,
+  currentUser,
 } from "./_limits.js";
+import { getUser, verificationStatus, submitVerification, isAdmin } from "./_verify.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
@@ -29,7 +32,14 @@ export async function GET(request) {
   try {
     const b = await buyer(request);
     const left = await remaining(b.tier, b.ids);
+    const extra = {};
+    if (b.email) {
+      extra.verification = verificationStatus(await getUser(b.email));
+      extra.verifiedLimit = tierLimit("verified");
+      if (isAdmin({ email: b.email })) extra.admin = true;
+    }
     return json({
+      ...extra,
       accounts: true,
       signedIn: Boolean(b.email),
       email: b.email,
@@ -54,6 +64,20 @@ export async function POST(request) {
   }
 
   if (!accountsEnabled()) return json({ error: "Accounts aren't available yet." }, 503);
+
+  if (body.action === "id-submit") {
+    const user = await currentUser(request);
+    if (!user) return json({ error: "Sign in first." }, 401);
+    try {
+      const r = await submitVerification(user.email, body);
+      if (r.error) return json({ error: r.error }, r.status);
+      return json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      return json({ error: "Couldn't send your ID right now — try again in a minute." }, 502);
+    }
+  }
+
   const email = normEmail(body.email);
   if (!validEmail(email)) return json({ error: "Enter a valid email." }, 400);
 

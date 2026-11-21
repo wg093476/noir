@@ -4,6 +4,7 @@
 
 import crypto from "node:crypto";
 import { accountsEnabled, reserve, release, normEmail } from "./_limits.js";
+import { effectiveTier } from "./_verify.js";
 
 // ---------- settings (from Vercel Environment Variables) ----------
 
@@ -262,11 +263,12 @@ async function fulfillIntent(pi, email) {
   // checkout), their email and the card itself, so switching emails or devices doesn't help.
   let counted = [];
   if (accountsEnabled() && meta.noir_ids !== undefined) {
-    const tier = meta.noir_tier || "guest";
     const ids = String(meta.noir_ids || "").split("|").filter(Boolean);
+    const card = await paymentCard(pi);
+    // the Verified limit only counts when the card is in the verified person's name
+    const tier = await effectiveTier(meta.noir_tier || "guest", ids, card.name);
     if (tier === "guest" && email) ids.push("e:" + normEmail(email));
-    const fp = await cardFingerprint(pi);
-    if (fp) ids.push("c:" + fp);
+    if (card.fingerprint) ids.push("c:" + card.fingerprint);
     const unique = [...new Set(ids)];
     if (!(await reserve(tier, unique, meta.amount))) {
       return refundIntent(pi, "daily_limit", "Over the daily spending limit");
@@ -314,13 +316,14 @@ async function refundIntent(pi, reason, message) {
 }
 
 // The card's fingerprint is the same every time that card is used, whatever email or device.
-async function cardFingerprint(pi) {
+// The name is the cardholder name the buyer entered (or their Apple / Google Pay name).
+async function paymentCard(pi) {
   try {
     let pm = pi.payment_method;
     if (pm && typeof pm === "string") pm = await stripe(`/payment_methods/${pm}`);
-    return pm?.card?.fingerprint || null;
+    return { fingerprint: pm?.card?.fingerprint || null, name: pm?.billing_details?.name || null };
   } catch {
-    return null;
+    return { fingerprint: null, name: null };
   }
 }
 

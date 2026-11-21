@@ -28,6 +28,8 @@ export async function POST(request) {
 
     // Crypto can't be refunded automatically, so the daily limit is checked here, before paying.
     const who = await buyer(request, email);
+    // Crypto has no cardholder name to match against a verified ID, so it uses the account limit.
+    if (who.tier === "verified") who.tier = "account";
     const left = await remaining(who.tier, who.ids);
     if (amount > left) return json({ error: limitMessage(who.tier, left), limit: true }, 403);
 
