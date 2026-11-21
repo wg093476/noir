@@ -11,3 +11,4 @@ Digital gift card store at [noirgc.com](https://www.noirgc.com).
 Keys and settings live in Vercel → Settings → Environment Variables, never in this repo.
 
 Testing: while the Stripe keys are `*_test_*` and `RELOADLY_MODE` is `sandbox`, pay with card `4242 4242 4242 4242` (any future date, any CVC). Codes delivered in sandbox are fake.
+Crypto (BTC, ETH, USDT and more) goes through NOWPayments; it uses their sandbox while `NOWPAYMENTS_SANDBOX` is `true`.
