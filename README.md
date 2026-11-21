@@ -12,3 +12,7 @@ Keys and settings live in Vercel → Settings → Environment Variables, never i
 
 Testing: while the Stripe keys are `*_test_*` and `RELOADLY_MODE` is `sandbox`, pay with card `4242 4242 4242 4242` (any future date, any CVC). Codes delivered in sandbox are fake.
 Crypto (BTC, ETH, USDT and more) goes through NOWPayments; it uses their sandbox while `NOWPAYMENTS_SANDBOX` is `true`.
+
+Accounts and daily limits: guests $500/day, signed-in accounts $1,500/day, verified $5,000/day (`api/_limits.js`, `api/account.js`).
+They switch on when the Upstash database is connected (`KV_REST_API_URL`, `KV_REST_API_TOKEN`); sign-in codes are emailed through Resend (`RESEND_API_KEY`, sending domain noirgc.com).
+To make someone verified, set `user:<email>` to `{"tier":"verified"}` in Upstash.
