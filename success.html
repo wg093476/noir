@@ -113,6 +113,8 @@ async function poll(){
     const r = await fetch("/api/order?" + orderQuery);
     const d = await r.json();
     if(d.state === "done") return showCard(d);
+    if(d.state === "refunded" && d.reason === "daily_limit")
+      return message("Daily limit reached", "That order went over today's spending limit, so your payment has been refunded in full (5–10 days to show on your statement). Sign in for a higher limit, or try again tomorrow.");
     if(d.state === "refunded")
       return message("We couldn't get that card", "Your payment has been refunded in full. It can take 5–10 days to show on your statement.");
     if(d.state === "unpaid")

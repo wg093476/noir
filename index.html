@@ -241,7 +241,27 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .amounts button.on small{color:#444}
 .assure{color:#666;font-size:11px;line-height:1.7;margin-top:14px}
 
+/* account + sign-in */
+.acct{position:absolute;top:16px;right:18px;display:flex;align-items:center;gap:10px;font-size:11px;color:#888;z-index:20}
+.acct button{background:none;border:1px solid rgba(255,255,255,.2);color:#fff;font-family:inherit;font-size:11px;padding:7px 12px;cursor:pointer}
+.acct button:hover{background:#fff;color:#000}
+.acct .tier{border:1px solid rgba(255,255,255,.2);padding:3px 7px;color:#ccc}
+.acct .who{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal[hidden]{display:none}
+.modal .box{background:#000;border:1px solid rgba(255,255,255,.2);padding:34px 28px;width:100%;max-width:380px;text-align:center}
+.modal .mtitle{font-family:'Pixelify Sans',sans-serif;font-size:24px;letter-spacing:3px;margin-bottom:8px}
+.modal .msub{color:#777;font-size:12px;line-height:1.6;margin-bottom:20px}
+.modal input{display:block;width:100%;padding:12px;margin-bottom:10px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);font-family:inherit;font-size:14px;text-align:center;outline:none}
+.modal input[hidden]{display:none}
+.modal #siGo{width:100%;padding:13px;background:#fff;color:#000;border:none;font-family:inherit;font-size:14px;cursor:pointer}
+.modal #siGo:disabled{opacity:.5}
+.modal .perks{color:#666;font-size:11px;line-height:1.7;margin-top:16px}
+.limit-note{color:#777;font-size:11px;margin:2px 0 14px;line-height:1.7}
+.linkbtn{background:none;border:none;color:#fff;text-decoration:underline;font-family:inherit;font-size:11px;cursor:pointer;padding:0}
+
 @media (max-width:600px){
+.acct .who{display:none}
 .tiles{grid-template-columns:repeat(2,1fr);gap:10px}
 .trust{grid-template-columns:repeat(2,1fr)}
 .grid{grid-template-columns:repeat(2,1fr);gap:12px}
@@ -254,6 +274,21 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 </head>
 
 <body>
+
+<div class="acct" id="acct"></div>
+
+<div class="modal" id="signin" hidden>
+  <div class="box" role="dialog" aria-label="Sign in">
+    <div class="mtitle">SIGN IN</div>
+    <div class="msub" id="signinSub">We'll email you a 6-digit code. No password needed.</div>
+    <input id="siEmail" type="email" placeholder="your@email.com" autocomplete="email">
+    <input id="siCode" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" hidden>
+    <button id="siGo">Send code</button>
+    <div class="error" id="siErr"></div>
+    <div class="perks" id="siPerks"></div>
+    <button class="back" id="siClose">close</button>
+  </div>
+</div>
 
 <div class="container">
 
@@ -303,6 +338,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
   <div class="amount-label" id="amountLabel">AMOUNT (USD)</div>
   <input class="custom" id="custom" inputmode="decimal" placeholder="$0">
   <div class="breakdown" id="breakdown"></div>
+  <div class="limit-note" id="limitNote"></div>
   <div class="eta">Delivered in under 30 seconds</div>
   <div class="express" id="express"></div>
   <div class="or" id="or">or</div>
@@ -600,8 +636,18 @@ function selectAmount(a){
   $("error").textContent = "";
 
   const ok = a && (product.type === "fixed" ? product.amounts.includes(a) : a >= product.min && a <= product.max);
-  $("payCrypto").disabled = !ok;
+  const over = ok && me && me.accounts && me.remaining != null && a > me.remaining;
+  $("payCrypto").disabled = !ok || over;
   showExpress(false);
+  if(over){
+    $("cryptoBox").style.display = "none";
+    pay.disabled = true;
+    pay.textContent = "Over today's limit";
+    breakdown.innerHTML = "";
+    $("error").textContent = `You have $${me.remaining.toLocaleString("en-US")} left today.` +
+      (me.signedIn ? "" : ` Sign in to raise it to $${me.accountLimit.toLocaleString("en-US")}/day.`);
+    return;
+  }
   if(!ok){
     $("cryptoBox").style.display = "none";
     pay.disabled = true;
@@ -879,6 +925,95 @@ $("browseLink").addEventListener("click", (e) => {
   e.preventDefault();
   $("all").scrollIntoView({ behavior: "smooth" });
 });
+/* ---------- account, sign-in and daily limits ---------- */
+let me = null;
+const money = (n) => "$" + Number(n).toLocaleString("en-US");
+async function loadMe(){
+  if(PREVIEW) return;
+  try{ me = await (await fetch("/api/me", { cache: "no-store" })).json(); }catch(e){ me = null; }
+  renderAcct();
+}
+function renderAcct(){
+  const box = $("acct");
+  box.innerHTML = "";
+  if(me && me.accounts){
+    if(me.signedIn){
+      const who = document.createElement("span"); who.className = "who"; who.textContent = me.email;
+      const tier = document.createElement("span"); tier.className = "tier"; tier.textContent = me.tier === "verified" ? "VERIFIED" : "ACCOUNT";
+      const out = document.createElement("button"); out.textContent = "Sign out"; out.onclick = signOut;
+      box.append(who, tier, out);
+    }else{
+      const b = document.createElement("button"); b.textContent = "Sign in"; b.onclick = openSignin;
+      box.appendChild(b);
+    }
+  }
+  updateLimitNote();
+}
+function updateLimitNote(){
+  const n = $("limitNote");
+  n.textContent = "";
+  if(!me || !me.accounts || me.remaining == null) return;
+  n.append(`${me.signedIn ? "Daily limit" : "Guest limit"}: ${money(me.remaining)} of ${money(me.limit)} left today`);
+  if(!me.signedIn){
+    n.append(" · ");
+    const a = document.createElement("button");
+    a.className = "linkbtn"; a.textContent = `Sign in for ${money(me.accountLimit)}/day`; a.onclick = openSignin;
+    n.appendChild(a);
+  }
+}
+let siStep = "email";
+function openSignin(){
+  siStep = "email";
+  $("signin").hidden = false;
+  $("siEmail").disabled = false;
+  $("siCode").hidden = true;
+  $("siGo").textContent = "Send code";
+  $("siErr").textContent = "";
+  $("signinSub").textContent = "We'll email you a 6-digit code. No password needed.";
+  $("siPerks").textContent = me && me.accountLimit ? `Accounts can spend up to ${money(me.accountLimit)} a day (guests ${money(me.signedIn ? 500 : me.limit)}).` : "";
+  $("siEmail").focus();
+}
+$("siClose").addEventListener("click", () => ($("signin").hidden = true));
+$("signin").addEventListener("click", (e) => { if(e.target.id === "signin") $("signin").hidden = true; });
+async function siSubmit(){
+  const go = $("siGo"), err = $("siErr");
+  const email = $("siEmail").value.trim();
+  err.textContent = "";
+  go.disabled = true;
+  try{
+    if(siStep === "email"){
+      const r = await fetch("/api/auth-start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
+      const d = await r.json();
+      if(!r.ok) throw new Error(d.error);
+      siStep = "code";
+      $("siEmail").disabled = true;
+      $("siCode").hidden = false; $("siCode").value = ""; $("siCode").focus();
+      $("signinSub").textContent = "We sent a 6-digit code to " + email + ". Check spam if it's not there.";
+      go.textContent = "Sign in";
+    }else{
+      const r = await fetch("/api/auth-verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, code: $("siCode").value }) });
+      const d = await r.json();
+      if(!r.ok) throw new Error(d.error);
+      $("signin").hidden = true;
+      await loadMe();
+      if(product && $("card").style.display === "block") selectAmount(amount);
+    }
+  }catch(e){
+    err.textContent = e.message || "Something went wrong — try again.";
+  }finally{
+    go.disabled = false;
+  }
+}
+$("siGo").addEventListener("click", siSubmit);
+$("siEmail").addEventListener("keydown", (e) => { if(e.key === "Enter") siSubmit(); });
+$("siCode").addEventListener("keydown", (e) => { if(e.key === "Enter") siSubmit(); });
+async function signOut(){
+  try{ await fetch("/api/logout", { method: "POST" }); }catch(e){}
+  await loadMe();
+  if(product && $("card").style.display === "block") selectAmount(amount);
+}
+loadMe();
+
 $("back").addEventListener("click", () => history.back());
 $("home").addEventListener("click", () => { if($("card").style.display === "block") history.back(); });
 window.addEventListener("popstate", showSearch);
