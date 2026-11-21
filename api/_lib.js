@@ -311,8 +311,11 @@ export async function fulfillPaymentIntent(piId) {
 
 export const cryptoEnabled = () => Boolean(process.env.NOWPAYMENTS_API_KEY);
 
+// Sandbox unless NOWPAYMENTS_SANDBOX is set to "false".
+export const cryptoSandbox = () => env("NOWPAYMENTS_SANDBOX", "true") === "true";
+
 const nowBase = () =>
-  env("NOWPAYMENTS_SANDBOX", "true") === "true"
+  cryptoSandbox()
     ? "https://api-sandbox.nowpayments.io/v1"
     : "https://api.nowpayments.io/v1";
 

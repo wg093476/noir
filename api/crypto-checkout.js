@@ -2,7 +2,7 @@
 // The customer picks BTC, ETH, USDT, USDC or another coin on that page.
 import {
   findProduct, isValidAmount, priceFor, json,
-  cryptoEnabled, nowpayments, makeCryptoOrderId,
+  cryptoEnabled, cryptoSandbox, nowpayments, makeCryptoOrderId,
 } from "./_lib.js";
 
 export async function POST(request) {
@@ -29,12 +29,30 @@ export async function POST(request) {
     const site = process.env.SITE_URL || new URL(request.url).origin;
     const orderId = makeCryptoOrderId(product.id, amount);
 
+    const description = `${product.name} $${amount} | ${email}`;
+
+    // TEST ONLY: in the NOWPayments sandbox, { test: "success" } asks NOWPayments to act out a
+    // fully paid payment, so the whole flow (webhook -> card bought) can be checked without real
+    // crypto. Ignored completely once NOWPAYMENTS_SANDBOX is "false" (live).
+    if (cryptoSandbox() && body.test === "success") {
+      const payment = await nowpayments("/payment", {
+        price_amount: total,
+        price_currency: "usd",
+        pay_currency: "btc",
+        order_id: orderId,
+        order_description: description,
+        ipn_callback_url: `${site}/api/crypto-webhook`,
+        case: "success",
+      });
+      return json({ test: true, orderId, paymentId: payment.payment_id, status: payment.payment_status });
+    }
+
     const invoice = await nowpayments("/invoice", {
       price_amount: total,
       price_currency: "usd",
       order_id: orderId,
       // the email rides along here (not in a URL) so the webhook knows where to send the code
-      order_description: `${product.name} $${amount} | ${email}`,
+      order_description: description,
       ipn_callback_url: `${site}/api/crypto-webhook`,
       success_url: `${site}/success.html?crypto=1`,
       cancel_url: `${site}/`,
