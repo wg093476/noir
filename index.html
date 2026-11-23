@@ -86,7 +86,16 @@ outline:none;
 font-family:'JetBrains Mono',monospace;
 transition:border-color .15s ease,box-shadow .15s ease;
 }
+#search{-webkit-appearance:none;appearance:none}
+#search::-webkit-search-cancel-button,#search::-webkit-search-decoration{-webkit-appearance:none;display:none}
 #search:hover{border-color:rgba(255,255,255,.28)}
+/* tap-to-search button (phones without an Enter/Search key) */
+.search-go{position:absolute;right:14px;top:50%;transform:translateY(-50%) scale(.85);z-index:3;
+width:44px;height:44px;border-radius:12px;border:none;background:#fff;color:#000;
+display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease}
+.search-go.on{opacity:1;pointer-events:auto;transform:translateY(-50%) scale(1)}
+.search-go svg{width:22px;height:22px}
 #search:focus{border-color:rgba(255,255,255,.5);box-shadow:0 0 0 4px rgba(255,255,255,.06)}
 .search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:22px;height:22px;color:#777;pointer-events:none;z-index:2}
 .search-hint{color:#8a8a8a;font-size:12px;margin-top:48px}
@@ -391,6 +400,8 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .search-wrap{margin-top:22px}
 .search-hint{margin-top:34px}
 .search-icon{left:16px;width:18px;height:18px}
+.search-go{right:8px;width:38px;height:38px;border-radius:10px}
+.search-go svg{width:19px;height:19px}
 .grid{grid-template-columns:repeat(2,1fr);gap:12px}
 .logo{font-size:44px;letter-spacing:10px}
 #search,.placeholder{font-size:18px}
@@ -506,15 +517,16 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 
 <!-- search view -->
 <div id="searchView">
-  <div class="search-wrap">
+  <form class="search-wrap" id="searchForm" role="search" action="/" autocomplete="off" novalidate>
     <div class="marquee" id="marquee" aria-hidden="true"><div class="marquee-track" id="marqueeTrack"></div></div>
     <div class="placeholder" id="placeholder">
       <span id="typewriter"></span><span class="cursor">_</span>
     </div>
     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-    <input id="search" autocomplete="off" spellcheck="false" aria-label="Search gift cards">
+    <input id="search" name="q" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" aria-label="Search gift cards">
+    <button type="submit" class="search-go" id="searchGo" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
     <div class="suggestions" id="suggestions"></div>
-  </div>
+  </form>
   <div class="search-hint" id="searchHint">Search by brand, or tap a card below</div>
   <div class="strip">
     <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Delivered in seconds</span>
@@ -822,6 +834,7 @@ function renderSuggestions(){
   suggestions.innerHTML = "";
   current.forEach((p, i) => {
     const b = document.createElement("button");
+    b.type = "button";
     if(i === 0) b.className = "active";
     const img = document.createElement("img");
     if(p.logo) img.src = p.logo;
@@ -840,6 +853,7 @@ function renderSuggestions(){
 
 input.addEventListener("input", () => {
   placeholder.style.display = input.value.length ? "none" : "block";
+  $("searchGo").classList.toggle("on", input.value.trim().length > 0);
   if(!catalog){
     $("status").textContent = "Loading cards…";
     loadCatalog().then(renderSuggestions);
@@ -854,14 +868,22 @@ input.addEventListener("keydown", async (e) => {
     active = (active + (e.key === "ArrowDown" ? 1 : -1) + current.length) % current.length;
     [...suggestions.children].forEach((b, i) => b.classList.toggle("active", i === active));
   }
-  if(e.key === "Enter"){
-    const q = input.value.trim();
-    if(!q) return;
-    await loadCatalog();
-    if(!current.length) renderSuggestions();
-    if(current.length) openProduct(current[active], parseQuery(q).amount);
-  }
 });
+
+/* Enter on a keyboard, the Search/Go key on a phone, or the arrow button */
+async function submitSearch(){
+  const q = input.value.trim();
+  if(!q){ input.focus(); return; }
+  await loadCatalog();
+  if(!current.length) renderSuggestions();
+  if(current.length){
+    input.blur(); // close the phone keyboard so the card is visible
+    openProduct(current[active] || current[0], parseQuery(q).amount);
+  } else if(!catalog){
+    $("status").textContent = "Couldn't load the cards — check your connection and try again.";
+  }
+}
+$("searchForm").addEventListener("submit", (e) => { e.preventDefault(); submitSearch(); });
 
 input.addEventListener("blur", () => setTimeout(() => (suggestions.style.display = "none"), 100));
 input.addEventListener("focus", () => { if(current.length) suggestions.style.display = "block"; });
