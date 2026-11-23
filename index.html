@@ -23,6 +23,7 @@
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow-x:hidden}
 
 body{
 background:#000;
@@ -52,11 +53,29 @@ user-select:none;
 
 .tagline{color:#666;font-size:14px;margin-bottom:40px}
 
-.search-wrap{position:relative;max-width:950px;margin:auto}
+.search-wrap{position:relative;max-width:950px;margin:30px auto 0}
+
+/* hero marquee: real gift card art drifting behind the search bar */
+.marquee{
+position:absolute;top:50%;left:50%;width:100vw;height:var(--mh,150px);
+transform:translate(-50%,-50%);overflow:hidden;pointer-events:none;z-index:0;
+-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 84%,transparent 100%);
+mask-image:linear-gradient(90deg,transparent 0,#000 16%,#000 84%,transparent 100%);
+opacity:0;transition:opacity 1.2s ease;
+}
+.marquee.on{opacity:1}
+.marquee-track{display:flex;width:max-content;height:100%;will-change:transform;
+animation:marquee var(--dur,140s) linear infinite}
+.marquee-item{flex:none;height:100%;aspect-ratio:1.6;margin-right:18px;border-radius:12px;
+background:#0d0d0d center/cover no-repeat;border:1px solid rgba(255,255,255,.06);
+filter:brightness(.33) saturate(.8)}
+@keyframes marquee{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@media (prefers-reduced-motion:reduce){.marquee-track{animation:none}}
 
 #search{
+position:relative;z-index:1;
 width:100%;
-background:#0b0b0b;
+background:rgba(10,10,10,.93);
 border:1px solid rgba(255,255,255,.16);
 border-radius:16px;
 color:#fff;
@@ -69,11 +88,11 @@ transition:border-color .15s ease,box-shadow .15s ease;
 }
 #search:hover{border-color:rgba(255,255,255,.28)}
 #search:focus{border-color:rgba(255,255,255,.5);box-shadow:0 0 0 4px rgba(255,255,255,.06)}
-.search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:22px;height:22px;color:#777;pointer-events:none}
-.search-hint{color:#8a8a8a;font-size:12px;margin-top:12px}
+.search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:22px;height:22px;color:#777;pointer-events:none;z-index:2}
+.search-hint{color:#8a8a8a;font-size:12px;margin-top:48px}
 
 .placeholder{
-position:absolute;left:50%;top:50%;
+position:absolute;left:50%;top:50%;z-index:2;
 transform:translate(-50%,-50%);
 color:#6f6f6f;pointer-events:none;font-size:26px;white-space:nowrap;
 }
@@ -82,7 +101,7 @@ color:#6f6f6f;pointer-events:none;font-size:26px;white-space:nowrap;
 @keyframes blink{50%{opacity:0}}
 
 .suggestions{
-position:absolute;left:0;right:0;top:calc(100% + 6px);
+position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:6;
 background:#0b0b0b;border:1px solid rgba(255,255,255,.16);border-radius:14px;overflow:hidden;
 z-index:5;
 display:none;
@@ -314,6 +333,10 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .trust{grid-template-columns:repeat(2,1fr)}
 .rgrid{grid-template-columns:1fr}
 #search{padding:18px 48px}
+.marquee{--mh:100px}
+.marquee-item{margin-right:12px;border-radius:9px}
+.search-wrap{margin-top:22px}
+.search-hint{margin-top:34px}
 .search-icon{left:16px;width:18px;height:18px}
 .grid{grid-template-columns:repeat(2,1fr);gap:12px}
 .logo{font-size:44px;letter-spacing:10px}
@@ -370,6 +393,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 <!-- search view -->
 <div id="searchView">
   <div class="search-wrap">
+    <div class="marquee" id="marquee" aria-hidden="true"><div class="marquee-track" id="marqueeTrack"></div></div>
     <div class="placeholder" id="placeholder">
       <span id="typewriter"></span><span class="cursor">_</span>
     </div>
@@ -525,7 +549,35 @@ function loadCatalog(){
   }
   return catalogPromise;
 }
-loadCatalog().then(() => { renderTiles(); renderBrowse(); });
+loadCatalog().then(() => { renderTiles(); renderBrowse(); buildMarquee(); });
+
+/* Hero marquee: one row of the store's own gift card art, in random order, scrolling
+   right to left forever. The row is laid out twice and the CSS animation slides it by
+   exactly half its width, so the loop has no visible jump. Built once; no JS per frame. */
+function buildMarquee(){
+  const track = $("marqueeTrack");
+  if(!catalog || track.childElementCount) return;
+  const seen = new Set(), art = [];
+  catalog.forEach(p => { if(p.logo && !seen.has(p.brand)){ seen.add(p.brand); art.push(p.logo); } });
+  if(art.length < 4) return;
+  for(let i = art.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [art[i], art[j]] = [art[j], art[i]]; }
+  let set = art.slice(0, 24);
+  const marquee = $("marquee");
+  const h = parseFloat(getComputedStyle(marquee).height) || 150;
+  const itemW = h * 1.6 + (window.innerWidth < 600 ? 12 : 18);
+  // one copy must be wider than the widest screen, or a gap would show
+  while(set.length * itemW < Math.max(window.screen.width, window.innerWidth) * 1.1) set = set.concat(set);
+  const frag = document.createDocumentFragment();
+  for(const copy of [0, 1]) set.forEach(url => {
+    const d = document.createElement("div");
+    d.className = "marquee-item";
+    d.style.backgroundImage = `url("${url.replace(/"/g, "%22")}")`;
+    frag.appendChild(d);
+  });
+  track.appendChild(frag);
+  track.style.setProperty("--dur", Math.round(set.length * itemW / 28) + "s"); // ~28px a second
+  setTimeout(() => marquee.classList.add("on"), 250);
+}
 
 /* ---------- popular brand tiles ---------- */
 const FEATURED = ["Roblox", "Steam", "Fortnite", "Xbox", "PlayStation", "Nintendo", "Apple", "Amazon"];
@@ -551,7 +603,7 @@ function renderTiles(){
     b.addEventListener("click", async () => {
       const wasEmpty = !catalog;
       await loadCatalog();                     // retries if the store was offline
-      if(wasEmpty && catalog){ renderTiles(); renderBrowse(); $("status").textContent = ""; }
+      if(wasEmpty && catalog){ renderTiles(); renderBrowse(); buildMarquee(); $("status").textContent = ""; }
       const hit = search(name)[0];
       if(hit) openProduct(hit, null);
     });
