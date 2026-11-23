@@ -66,6 +66,17 @@ async function saveUser(email, user) {
   await redis("SET", "user:" + email, JSON.stringify(user));
 }
 
+// Name the customer chose in the Account panel (shown when they post a review).
+export async function setProfile(email, { name }) {
+  const clean = String(name || "").replace(/\s+/g, " ").trim();
+  if (clean.length > 60) return { error: "That name is too long.", status: 400 };
+  if (clean && !/^[\p{L}\p{M}' .-]+$/u.test(clean)) return { error: "Use letters only for your name.", status: 400 };
+  const user = await getUser(email);
+  user.name = clean;
+  await saveUser(email, user);
+  return { ok: true, name: clean };
+}
+
 // What the storefront shows about a signed-in customer's verification.
 export function verificationStatus(user) {
   if (user.tier === "verified") return { status: "verified" };

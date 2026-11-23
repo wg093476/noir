@@ -4,14 +4,15 @@
 //   POST { action: "verify", email, code} -> signs in (sets the session cookie)
 //   POST { action: "logout" }             -> signs out
 //   POST { action: "id-submit", name, idType, idPhoto, selfie, consent } -> sends ID for review (signed in)
+//   POST { action: "profile", name }      -> saves the name shown on their reviews (signed in)
 import crypto from "node:crypto";
-import { json } from "./_lib.js";
+import { json, accountOrders } from "./_lib.js";
 import {
   accountsEnabled, buyer, remaining, tierLimit, readCookies, cookie,
   startSignIn, finishSignIn, endSession, normEmail, validEmail, clientIp,
   currentUser,
 } from "./_limits.js";
-import { getUser, verificationStatus, submitVerification, isAdmin } from "./_verify.js";
+import { getUser, verificationStatus, submitVerification, isAdmin, setProfile } from "./_verify.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
@@ -34,7 +35,10 @@ export async function GET(request) {
     const left = await remaining(b.tier, b.ids);
     const extra = {};
     if (b.email) {
-      extra.verification = verificationStatus(await getUser(b.email));
+      const user = await getUser(b.email);
+      extra.verification = verificationStatus(user);
+      extra.name = user.name || "";
+      extra.orders = await accountOrders(b.email).catch(() => []);
       extra.verifiedLimit = tierLimit("verified");
       if (isAdmin({ email: b.email })) extra.admin = true;
     }
@@ -64,6 +68,18 @@ export async function POST(request) {
   }
 
   if (!accountsEnabled()) return json({ error: "Accounts aren't available yet." }, 503);
+
+  if (body.action === "profile") {
+    const user = await currentUser(request);
+    if (!user) return json({ error: "Sign in first." }, 401);
+    try {
+      const r = await setProfile(user.email, body);
+      return r.error ? json({ error: r.error }, r.status) : json(r);
+    } catch (err) {
+      console.error(err);
+      return json({ error: "Couldn't save that right now — try again." }, 502);
+    }
+  }
 
   if (body.action === "id-submit") {
     const user = await currentUser(request);

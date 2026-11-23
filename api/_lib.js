@@ -398,6 +398,11 @@ async function fulfillIntent(pi, email) {
       method: "POST",
       params: { metadata: { noir_status: "done", reloadly_tx: order.transactionId } },
     });
+    const u = String(meta.noir_ids || "").split("|").find((x) => x.startsWith("u:"));
+    if (u) {
+      await recordOrder(u.slice(2), { kind: "card", ref: pi.id, productId: meta.productId, amount: Number(meta.amount) })
+        .catch((e) => console.error("couldn't save order to account:", e.message));
+    }
     return { state: "done", transactionId: String(order.transactionId), pi };
   } catch (err) {
     if (isDuplicateOrder(err)) {
@@ -409,6 +414,26 @@ async function fulfillIntent(pi, email) {
     console.error("Order failed, refunding", pi.id, err.message, err.data);
     return refundIntent(pi, "reloadly_failed", err.message);
   }
+}
+
+// Remember an order on the buyer's account, so they can find the code again from the Account panel.
+export async function recordOrder(email, order) {
+  if (!email || !accountsEnabled()) return;
+  await redis("LPUSH", "orders:" + email, JSON.stringify({ ...order, at: Date.now() }));
+  await redis("LTRIM", "orders:" + email, 0, 49);
+}
+
+export async function accountOrders(email, n = 10) {
+  if (!email || !accountsEnabled()) return [];
+  const raw = (await redis("LRANGE", "orders:" + email, 0, n - 1)) || [];
+  const items = await getCatalog().catch(() => []);
+  return raw.map((r) => {
+    try {
+      const o = JSON.parse(r);
+      const p = items.find((x) => String(x.id) === String(o.productId));
+      return { kind: o.kind, ref: o.ref, name: p ? p.name : "Gift card", logo: p ? p.logo : null, amount: o.amount, at: o.at };
+    } catch { return null; }
+  }).filter(Boolean);
 }
 
 async function refundIntent(pi, reason, message) {

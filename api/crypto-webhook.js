@@ -3,7 +3,7 @@
 // Reloadly then emails the code to the customer.
 import {
   verifyNowpaymentsSignature, parseCryptoOrderId, findProduct, priceFor,
-  placeOrder, isDuplicateOrder, json, cryptoSandbox, reloadlyLive,
+  placeOrder, isDuplicateOrder, json, cryptoSandbox, reloadlyLive, recordOrder,
 } from "./_lib.js";
 import { accountsEnabled, redis, reserve, sendEmail } from "./_limits.js";
 import { adminEmails } from "./_verify.js";
@@ -89,8 +89,9 @@ export async function POST(request) {
     }
 
     // Count it toward the buyer's daily limit (it was checked before they paid).
+    let saved = null;
     if (accountsEnabled()) {
-      const saved = JSON.parse((await redis("GET", "crypto:" + body.order_id)) || "null");
+      saved = JSON.parse((await redis("GET", "crypto:" + body.order_id)) || "null");
       if (saved) await reserve(saved.tier, saved.ids, order.amount, { force: true });
       await redis("DEL", "crypto:" + body.order_id);
     }
@@ -102,6 +103,11 @@ export async function POST(request) {
       orderRef: body.order_id,
     });
     console.log("Crypto order fulfilled", body.order_id, result.transactionId);
+    const u = (saved?.ids || []).find((x) => x.startsWith("u:"));
+    if (u) {
+      await recordOrder(u.slice(2), { kind: "crypto", ref: body.order_id, productId: order.productId, amount: order.amount })
+        .catch((e) => console.error("couldn't save order to account:", e.message));
+    }
     await thankYouEmail(body.order_id, email, product, order.amount).catch((e) => console.error("thank-you email failed:", e.message));
     return json({ received: true, fulfilled: true });
   } catch (err) {
