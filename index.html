@@ -56,31 +56,34 @@ user-select:none;
 
 #search{
 width:100%;
-background:transparent;
-border:none;
-border-top:1px solid rgba(255,255,255,.15);
-border-bottom:1px solid rgba(255,255,255,.15);
+background:#0b0b0b;
+border:1px solid rgba(255,255,255,.16);
+border-radius:16px;
 color:#fff;
 text-align:center;
-font-size:30px;
-padding:28px 20px;
+font-size:26px;
+padding:24px 64px;
 outline:none;
 font-family:'JetBrains Mono',monospace;
+transition:border-color .15s ease,box-shadow .15s ease;
 }
+#search:hover{border-color:rgba(255,255,255,.28)}
+#search:focus{border-color:rgba(255,255,255,.5);box-shadow:0 0 0 4px rgba(255,255,255,.06)}
+.search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:22px;height:22px;color:#777;pointer-events:none}
+.search-hint{color:#8a8a8a;font-size:12px;margin-top:12px}
 
 .placeholder{
 position:absolute;left:50%;top:50%;
 transform:translate(-50%,-50%);
-color:#8a8a8a;pointer-events:none;font-size:30px;white-space:nowrap;
+color:#6f6f6f;pointer-events:none;font-size:26px;white-space:nowrap;
 }
 
 .cursor{animation:blink 1s infinite}
 @keyframes blink{50%{opacity:0}}
 
 .suggestions{
-position:absolute;left:0;right:0;top:100%;
-background:#000;
-border-bottom:1px solid rgba(255,255,255,.15);
+position:absolute;left:0;right:0;top:calc(100% + 6px);
+background:#0b0b0b;border:1px solid rgba(255,255,255,.16);border-radius:14px;overflow:hidden;
 z-index:5;
 display:none;
 }
@@ -106,7 +109,7 @@ font-family:inherit;font-size:12px;text-align:center;
 }
 .tile .face{
 display:flex;align-items:center;justify-content:center;
-aspect-ratio:1.6;border-radius:8px;margin-bottom:8px;
+aspect-ratio:1.6;border-radius:12px;margin-bottom:8px;
 background:#0d0d0d center/cover no-repeat;
 border:1px solid rgba(255,255,255,.08);
 font-family:'Pixelify Sans',sans-serif;font-size:17px;letter-spacing:2px;color:#777;
@@ -122,13 +125,14 @@ transition:transform .15s ease,border-color .15s ease;
 .card{
 display:none;
 text-align:center;
-border:1px solid rgba(255,255,255,.15);
+background:#0a0a0a;
+border:1px solid rgba(255,255,255,.1);border-radius:20px;
 padding:40px;
 width:100%;max-width:460px;margin:auto;
 }
 .card .art{
 width:320px;max-width:100%;aspect-ratio:1.6;margin:0 auto 25px;
-border-radius:8px;background:#0d0d0d center/cover no-repeat;
+border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.6);background:#0d0d0d center/cover no-repeat;
 border:1px solid rgba(255,255,255,.08);
 display:flex;align-items:center;justify-content:center;
 font-family:'Pixelify Sans',sans-serif;font-size:30px;letter-spacing:4px;color:#888;
@@ -137,12 +141,14 @@ font-family:'Pixelify Sans',sans-serif;font-size:30px;letter-spacing:4px;color:#
 .card .name{font-size:26px;margin-bottom:20px}
 .amounts{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:20px}
 .amounts button{
-padding:10px 14px;min-width:70px;
-background:#111;color:#fff;
-border:1px solid rgba(255,255,255,.15);
+padding:10px 14px;min-width:70px;border-radius:10px;
+background:#141414;color:#fff;
+border:1px solid rgba(255,255,255,.14);
 font-family:inherit;font-size:15px;cursor:pointer;
 }
-.amounts button.on{background:#fff;color:#000}
+.amounts button.on{background:#fff;color:#000;border-color:#fff}
+.amounts button:hover{border-color:rgba(255,255,255,.4)}
+.amount-or{display:none;color:#666;font-size:11px;margin:-6px 0 10px}
 .custom{
 display:none;margin:0 auto 20px;width:200px;
 background:transparent;color:#fff;text-align:center;
@@ -154,11 +160,11 @@ font-family:inherit;font-size:24px;padding:6px;outline:none;
 .total{font-size:28px;margin:10px 0 6px}
 .eta{color:#777;margin-bottom:28px;font-size:13px}
 .pay{
-width:260px;max-width:100%;padding:14px;
-background:#fff;color:#000;border:none;cursor:pointer;
-font-family:inherit;font-size:15px;
+width:260px;max-width:100%;padding:14px;border-radius:10px;
+background:#fff;color:#000;border:1px solid #fff;cursor:pointer;
+font-family:inherit;font-size:15px;font-weight:500;
 }
-.pay:disabled{opacity:.4;cursor:default}
+.pay:disabled{background:transparent;color:#8a8a8a;border:1px dashed rgba(255,255,255,.2);cursor:default}
 .express{width:260px;max-width:100%;margin:0 auto;display:none}
 .express.on{display:block}
 .mock-wallet{
@@ -169,10 +175,10 @@ font-family:-apple-system,system-ui,sans-serif;font-size:17px;font-weight:600;cu
 align-items:center;gap:10px}
 .or.on{display:flex}
 .or::before,.or::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12)}
-.pay.secondary{background:#111;color:#fff;border:1px solid rgba(255,255,255,.15)}
+.pay.secondary{background:#141414;color:#fff;border:1px solid rgba(255,255,255,.15)}
 .pay-crypto{
-display:none;width:260px;max-width:100%;padding:13px;margin-top:10px;
-background:#111;color:#fff;border:1px solid rgba(255,255,255,.15);cursor:pointer;
+display:none;width:260px;max-width:100%;padding:13px;margin-top:10px;border-radius:10px;
+background:#141414;color:#fff;border:1px solid rgba(255,255,255,.15);cursor:pointer;
 font-family:inherit;font-size:14px;
 }
 .pay-crypto:disabled{opacity:.4;cursor:default}
@@ -186,7 +192,8 @@ border:1px solid rgba(255,255,255,.2);font-family:inherit;font-size:13px;outline
 width:100%;padding:12px;background:#fff;color:#000;border:none;cursor:pointer;
 font-family:inherit;font-size:14px;
 }
-.methods{margin-top:12px;color:#555;font-size:11px}
+.methods{margin-top:16px;color:#9a9a9a;font-size:11px;display:flex;align-items:center;justify-content:center;gap:6px}
+.methods svg{width:13px;height:13px;color:#9a9a9a}
 .back{
 margin-top:22px;background:none;border:none;color:#666;
 font-family:inherit;font-size:12px;cursor:pointer;
@@ -196,15 +203,52 @@ font-family:inherit;font-size:12px;cursor:pointer;
 
 /* trust row */
 .trust{
-display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
-width:100%;max-width:760px;margin:30px auto 0;
+display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+width:100%;max-width:860px;margin:40px auto 0;
 }
-.trust div{
-border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px 10px;
-color:#9a9a9a;font-size:11px;line-height:1.6;
+.trust > div{
+background:#0b0b0b;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px 14px;
+color:#b5b5b5;font-size:11.5px;line-height:1.65;
 }
-.trust b{display:block;color:#fff;font-weight:500;font-size:12px;margin-bottom:2px}
-.paywith{margin-top:16px;color:#555;font-size:11px;letter-spacing:.5px}
+.trust b{display:block;color:#fff;font-weight:500;font-size:13px;margin-bottom:4px}
+.trust svg{width:22px;height:22px;color:#fff;margin-bottom:8px}
+.trust a{color:#fff}
+.strip{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;margin-top:16px;color:#bdbdbd;font-size:12px}
+.strip span{display:inline-flex;align-items:center;gap:6px}
+.strip svg{width:14px;height:14px;color:#fff}
+.strip a{color:#bdbdbd;text-decoration:none}
+.strip a:hover{color:#fff}
+.stars{color:#f5c84c;letter-spacing:1px}
+.paywith{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:18px}
+.paywith span{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:8px;
+background:#0f0f0f;border:1px solid rgba(255,255,255,.12);color:#d0d0d0;font-size:11px}
+.paywith svg{width:13px;height:13px;color:#9a9a9a}
+
+/* reviews on the home page */
+.reviews-home{width:100%;max-width:1000px;margin:64px auto 0;display:none}
+.reviews-home.on{display:block}
+.reviews-home h2,.faq h2{font-family:'Pixelify Sans',sans-serif;font-weight:500;font-size:26px;letter-spacing:3px;text-align:center}
+.rsum{text-align:center;color:#bdbdbd;font-size:13px;margin:10px 0 22px}
+.rsum .stars{font-size:16px}
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;text-align:left}
+.rcard{background:#0b0b0b;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px}
+.rcard .stars{font-size:13px}
+.rcard p{color:#d6d6d6;font-size:12.5px;line-height:1.7;margin:10px 0 12px;word-wrap:break-word}
+.rcard .by{color:#888;font-size:11px}
+.rcard .by b{color:#fff;font-weight:500}
+.rcard .vp{color:#7fd29a}
+.rmore{display:block;text-align:center;margin-top:18px;color:#fff;font-size:12px}
+
+/* FAQ */
+.faq{width:100%;max-width:760px;margin:70px auto 0;text-align:left}
+.faq h2{margin-bottom:20px}
+.faq details{background:#0b0b0b;border:1px solid rgba(255,255,255,.1);border-radius:12px;margin-bottom:10px;padding:0 18px}
+.faq summary{cursor:pointer;list-style:none;padding:16px 0;color:#fff;font-size:13px;display:flex;justify-content:space-between;gap:12px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:#777}
+.faq details[open] summary::after{content:"–"}
+.faq details p{color:#b5b5b5;font-size:12.5px;line-height:1.75;padding:0 0 16px}
+.faq a{color:#fff}
 
 /* how it works */
 .steps{display:flex;justify-content:center;gap:28px;margin:54px auto 0;max-width:760px;flex-wrap:wrap}
@@ -243,13 +287,13 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 
 /* account + sign-in */
 .acct{position:absolute;top:16px;right:18px;display:flex;align-items:center;gap:10px;font-size:11px;color:#888;z-index:20}
-.acct button{background:none;border:1px solid rgba(255,255,255,.2);color:#fff;font-family:inherit;font-size:11px;padding:7px 12px;cursor:pointer}
+.acct button{background:none;border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-family:inherit;font-size:11px;padding:7px 12px;cursor:pointer}
 .acct button:hover{background:#fff;color:#000}
 .acct .tier{border:1px solid rgba(255,255,255,.2);padding:3px 7px;color:#ccc}
 .acct .who{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal[hidden]{display:none}
-.modal .box{background:#000;border:1px solid rgba(255,255,255,.2);padding:34px 28px;width:100%;max-width:380px;text-align:center}
+.modal .box{background:#0a0a0a;border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:34px 28px;width:100%;max-width:380px;text-align:center}
 .modal .mtitle{font-family:'Pixelify Sans',sans-serif;font-size:24px;letter-spacing:3px;margin-bottom:8px}
 .modal .msub{color:#777;font-size:12px;line-height:1.6;margin-bottom:20px}
 .modal input{display:block;width:100%;padding:12px;margin-bottom:10px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.25);font-family:inherit;font-size:14px;text-align:center;outline:none}
@@ -274,9 +318,12 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .acct .who{display:none}
 .tiles{grid-template-columns:repeat(2,1fr);gap:10px}
 .trust{grid-template-columns:repeat(2,1fr)}
+.rgrid{grid-template-columns:1fr}
+#search{padding:18px 48px}
+.search-icon{left:16px;width:18px;height:18px}
 .grid{grid-template-columns:repeat(2,1fr);gap:12px}
 .logo{font-size:44px;letter-spacing:10px}
-#search,.placeholder{font-size:20px}
+#search,.placeholder{font-size:18px}
 .card{padding:28px 18px}
 }
 </style>
@@ -332,20 +379,32 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <div class="placeholder" id="placeholder">
       <span id="typewriter"></span><span class="cursor">_</span>
     </div>
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
     <input id="search" autocomplete="off" spellcheck="false" aria-label="Search gift cards">
     <div class="suggestions" id="suggestions"></div>
+  </div>
+  <div class="search-hint" id="searchHint">Search by brand, or tap a card below</div>
+  <div class="strip">
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Delivered in seconds</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Secure checkout by Stripe</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>Automatic refund if delivery fails</span>
+    <span id="stripRating" hidden></span>
   </div>
   <div class="status" id="status"></div>
   <div class="tiles loading" id="tiles" aria-label="Popular gift cards"></div>
   <div class="brands"><a href="#all" id="browseLink" style="color:inherit">Browse every gift card ↓</a></div>
 
   <div class="trust">
-    <div><b>Instant delivery</b>Your code appears on screen in seconds, plus a copy by email.</div>
-    <div><b>Secure checkout</b>Cards and wallets are processed by Stripe. We never see your card number.</div>
-    <div><b>Money-back promise</b>If a code can't be delivered, you're refunded automatically.</div>
-    <div><b>Real support</b>Questions? <a href="contact.html" style="color:#fff">support@noirgc.com</a></div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg><b>Instant delivery</b>Your code appears on screen in seconds, plus a copy by email.</div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><b>Secure checkout</b>Cards and wallets are processed by Stripe. We never see your card number.</div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg><b>Money-back promise</b>If a code can't be delivered, you're refunded automatically.</div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><b>Real support</b>Questions? Email <a href="contact.html">support@noirgc.com</a>, we reply within a day.</div>
   </div>
-  <div class="paywith">Apple Pay · Google Pay · Visa · Mastercard · Amex · Discover · Crypto</div>
+  <div class="paywith" aria-label="Ways to pay">
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Apple Pay</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Google Pay</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Visa</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Mastercard</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Amex</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Discover</span>
+    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4m0 0h4.5a2 2 0 0 1 0 4H9.5m0-8v8M11 7v1.5m0 8V18"/></svg>Crypto</span>
+  </div>
 
   <div class="steps">
     <div><span>01</span>Pick a gift card and amount</div>
@@ -353,11 +412,29 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <div><span>03</span>Copy your code and redeem it right away</div>
   </div>
 
+  <section class="reviews-home" id="reviewsHome">
+    <h2>WHAT BUYERS SAY</h2>
+    <div class="rsum" id="rsum"></div>
+    <div class="rgrid" id="rgrid"></div>
+    <a class="rmore" href="reviews.html">Read all reviews →</a>
+  </section>
+
   <section class="browse" id="all">
     <h2>ALL GIFT CARDS</h2>
     <div class="sub" id="browseSub">Loading the catalog…</div>
     <div class="cats" id="cats"></div>
     <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="faq" id="faq">
+    <h2>QUESTIONS</h2>
+    <details><summary>Is NOIR legit?</summary><p>Yes. Every code is bought from a large gift card wholesaler the moment you pay, and payments go through Stripe, the same checkout used by Amazon, Shopify and millions of stores. If a code can't be delivered you're refunded automatically, and every review on this site comes from a real order.</p></details>
+    <details><summary>How fast do I get my code?</summary><p>Card, Apple Pay and Google Pay orders show the code on screen within seconds, and we email you a copy. Crypto orders are emailed once the network confirms: a few minutes for ETH, USDT and USDC, 10–60 minutes for Bitcoin.</p></details>
+    <details><summary>What if my code doesn't work?</summary><p>Email <a href="contact.html">support@noirgc.com</a> within 7 days with a screenshot of the error. We check it with our supplier and replace or refund it if it's faulty. See the <a href="refund.html">refund policy</a>.</p></details>
+    <details><summary>Which countries do the cards work in?</summary><p>Our cards are US cards. They work on US accounts and US stores.</p></details>
+    <details><summary>Is my payment information safe?</summary><p>Card details go straight to Stripe and crypto goes through NOWPayments. NOIR never sees or stores your card number.</p></details>
+    <details><summary>Do I need an account?</summary><p>No. Guests can buy up to $500 a day. Sign in with your email (no password) to raise that to $1,500, or get verified for $5,000.</p></details>
+    <details><summary>Why is there a service fee?</summary><p>It covers payment processing and running the store. It's always shown before you pay, and the total you see is the total you pay.</p></details>
   </section>
 </div>
 
@@ -366,6 +443,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
   <div class="art" id="art"></div>
   <div class="name" id="name"></div>
   <div class="amounts" id="amounts"></div>
+  <div class="amount-or" id="amountOr">or type any amount</div>
   <div class="amount-label" id="amountLabel">AMOUNT (USD)</div>
   <input class="custom" id="custom" inputmode="decimal" placeholder="$0">
   <div class="breakdown" id="breakdown"></div>
@@ -380,7 +458,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <div class="hint">Your code is emailed once the payment confirms on the blockchain.</div>
     <button id="cryptoGo">Continue to crypto payment</button>
   </div>
-  <div class="methods">Secure payments by Stripe</div>
+  <div class="methods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Secure, encrypted checkout by Stripe</div>
   <div class="assure">Code shown instantly and emailed · Automatic refund if delivery fails</div>
   <div class="error" id="error"></div>
   <button class="back" id="back">← back</button>
@@ -625,6 +703,7 @@ function openProduct(p, wanted){
   amounts.innerHTML = "";
   const custom = $("custom");
 
+  $("amountOr").style.display = "none";
   if(p.type === "fixed"){
     custom.style.display = "none";
     $("amountLabel").style.display = "none";
@@ -649,6 +728,15 @@ function openProduct(p, wanted){
   }else{
     custom.style.display = "block";
     $("amountLabel").style.display = "block";
+    // quick picks for cards that take any amount
+    const presets = [10, 25, 50, 100, 200, 500].filter(v => v >= p.min && v <= p.max).slice(-5);
+    presets.forEach(v => {
+      const b = document.createElement("button");
+      b.dataset.a = v; b.dataset.pid = p.id; b.textContent = "$" + v;
+      b.addEventListener("click", () => { custom.value = v; selectAmount(v); });
+      amounts.appendChild(b);
+    });
+    $("amountOr").style.display = presets.length ? "block" : "none";
     custom.placeholder = `$${p.min} – $${p.max}`;
     custom.value = wanted && wanted >= p.min && wanted <= p.max ? wanted : "";
     custom.oninput = () => selectAmount(Number(custom.value.replace(/[^0-9.]/g, "")) || null);
@@ -682,8 +770,11 @@ function selectAmount(a){
   if(!ok){
     $("cryptoBox").style.display = "none";
     pay.disabled = true;
-    pay.textContent = product.type === "range" && a ? `Enter $${product.min} – $${product.max}` : "Choose an amount";
+    pay.textContent = "Choose an amount";
     breakdown.innerHTML = "";
+    if(product.type === "range" && a){
+      $("error").textContent = a > product.max ? `This card goes up to $${product.max}.` : `The smallest amount for this card is $${product.min}.`;
+    }
     return;
   }
   pay.disabled = true;
@@ -912,6 +1003,7 @@ function renderBrowse(){
     if(fa !== fb) return (fa < 0 ? 99 : fa) - (fb < 0 ? 99 : fb);
     return a.brand.localeCompare(b.brand);
   });
+  $("searchHint").textContent = `Search ${brandList.length} brands, or tap a card below`;
   sub.textContent = brandList.length + " brands · prices in USD · delivered instantly";
   const cats = ["All", ...CAT_ORDER.filter(c => brandList.some(b => b.cat === c))];
   const catBox = $("cats");
@@ -956,6 +1048,44 @@ $("browseLink").addEventListener("click", (e) => {
   e.preventDefault();
   $("all").scrollIntoView({ behavior: "smooth" });
 });
+/* ---------- reviews on the home page ---------- */
+const starText = (n) => "★★★★★".slice(0, Math.round(n)) + "☆☆☆☆☆".slice(0, 5 - Math.round(n));
+async function loadReviews(){
+  if(PREVIEW) return;
+  try{
+    const d = await (await fetch("/api/order?reviews=1&limit=20")).json();
+    // show the newest reviews that say something; star-only ones still count in the rating
+    d.reviews = [...d.reviews.filter(r => r.text), ...d.reviews.filter(r => !r.text)].slice(0, 3);
+    if(!d.count) return;
+    const avg = d.average.toFixed(1);
+    const sr = $("stripRating");
+    sr.innerHTML = "";
+    const a = document.createElement("a"); a.href = "reviews.html";
+    const st = document.createElement("span"); st.className = "stars"; st.textContent = "★";
+    a.append(st, ` ${avg} from ${d.count} review${d.count === 1 ? "" : "s"}`);
+    sr.append(a); sr.hidden = false;
+    const sum = $("rsum"); sum.innerHTML = "";
+    const big = document.createElement("span"); big.className = "stars"; big.textContent = starText(d.average);
+    sum.append(big, `  ${avg} out of 5 · ${d.count} verified review${d.count === 1 ? "" : "s"}`);
+    const grid = $("rgrid"); grid.innerHTML = "";
+    d.reviews.forEach(rv => {
+      const c = document.createElement("div"); c.className = "rcard";
+      const s1 = document.createElement("div"); s1.className = "stars"; s1.textContent = starText(rv.rating);
+      const p = document.createElement("p"); p.textContent = rv.text;
+      const by = document.createElement("div"); by.className = "by";
+      const b = document.createElement("b"); b.textContent = rv.name;
+      const v = document.createElement("span"); v.className = "vp"; v.textContent = " ✓ Verified purchase";
+      by.append(b, v, ` · ${rv.brand}${rv.amount ? " $" + rv.amount : ""}`);
+      c.append(s1);
+      if(rv.text) c.append(p);
+      c.append(by);
+      grid.append(c);
+    });
+    $("reviewsHome").classList.add("on");
+  }catch(e){}
+}
+loadReviews();
+
 /* ---------- account, sign-in and daily limits ---------- */
 let me = null;
 const money = (n) => "$" + Number(n).toLocaleString("en-US");
