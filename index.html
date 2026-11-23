@@ -366,6 +366,16 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .modal .consent input{width:auto;display:inline;margin:3px 0 0}
 .modal .consent a{color:#ccc}
 .modal #idvGo{width:100%;padding:13px;background:#fff;color:#000;border:none;font-family:inherit;font-size:14px;cursor:pointer}
+#idv .box{max-height:90vh;overflow:auto}
+.idguide{text-align:left;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:11px;color:#aaa;line-height:1.65}
+.idguide summary{cursor:pointer;color:#fff;font-size:12px;list-style:none;padding:2px 0}
+.idguide summary::-webkit-details-marker{display:none}
+.idguide summary::after{content:" ▾";color:#777}
+.idguide[open] summary::after{content:" ▴"}
+.idguide .g-sec{color:#fff;font-size:11px;letter-spacing:.5px;margin:12px 0 4px}
+.idguide ol,.idguide ul{margin:0;padding-left:18px}
+.idguide li{margin:3px 0}
+.idguide b{color:#ddd;font-weight:600}
 .modal #idvGo:disabled{opacity:.5}
 .linkbtn{background:none;border:none;color:#fff;text-decoration:underline;font-family:inherit;font-size:11px;cursor:pointer;padding:0}
 
@@ -411,6 +421,41 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
   <div class="box" role="dialog" aria-label="Get verified">
     <div class="mtitle">GET VERIFIED</div>
     <div class="msub" id="idvSub">Raise your limit to $5,000 a day. A NOIR team member checks your ID by hand, usually within a day.</div>
+    <details class="idguide" open>
+      <summary>How to take your photos (read first)</summary>
+      <div class="g-sec">Before you start</div>
+      <ul>
+        <li>Use your <b>real, physical ID</b> — not a photocopy, a screenshot, or a photo of a screen.</li>
+        <li>It must be <b>valid (not expired)</b>, and the name you type below must match the ID exactly.</li>
+        <li>A <b>driver's license, state ID or passport</b> works. For a passport, photograph the page with your photo.</li>
+      </ul>
+      <div class="g-sec">Photo 1 — the front of your ID</div>
+      <ol>
+        <li>Lay the ID <b>flat on a plain, dark background</b> — a black table, black shirt or dark paper. No patterns, no other cards or objects.</li>
+        <li>Use <b>bright, even light</b>. Daylight near a window is best. Turn <b>flash off</b> — it causes glare on the plastic.</li>
+        <li>Hold your phone <b>straight above the ID</b>, parallel to it (not at an angle).</li>
+        <li>Fill most of the photo with the ID, but keep <b>all four corners visible</b> with a little background around the edges.</li>
+        <li>Tap the screen on the ID to focus, hold still, and take the photo.</li>
+        <li><b>Zoom in and check:</b> every word, number, date and your face on the ID must be sharp and readable. If there's a white shine on any text, tilt the ID slightly and retake.</li>
+        <li>Don't cover any part with your fingers, and don't crop, edit or use filters.</li>
+      </ol>
+      <div class="g-sec">Photo 2 — a selfie holding your ID</div>
+      <ol>
+        <li>Hold the ID <b>next to your face</b> at chin level, with the front facing the camera. Don't cover your face with it.</li>
+        <li>Look <b>straight at the camera</b> with your whole face in the picture and eyes open.</li>
+        <li>Take off <b>sunglasses, hats and masks</b>. Regular glasses are fine if there's no glare on them.</li>
+        <li>Face a window or lamp so the <b>light is on your face</b>. Don't stand with a bright window behind you.</li>
+        <li>A plain wall behind you is best.</li>
+        <li>Use your normal camera — <b>no filters, beauty mode or edits</b>. Make sure your face and the ID are both in focus.</li>
+      </ol>
+      <div class="g-sec">Most common reasons a check fails</div>
+      <ul>
+        <li>Blurry photo, glare over the text, or a corner cut off</li>
+        <li>Name typed differently from the ID (use your full legal name)</li>
+        <li>Expired ID, or a photo of a screen / copy instead of the real card</li>
+        <li>Face hidden, too dark, or sunglasses/hat in the selfie</li>
+      </ul>
+    </details>
     <input id="idvName" placeholder="Full legal name, as on your ID" autocomplete="name" maxlength="80">
     <select id="idvType">
       <option value="">Type of ID</option>
@@ -418,8 +463,8 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
       <option value="state_id">State ID</option>
       <option value="passport">Passport</option>
     </select>
-    <label class="filebtn">Photo of the front of your ID<input id="idvPhoto" type="file" accept="image/*" capture="environment"><span id="idvPhotoOk"></span></label>
-    <label class="filebtn">Selfie holding your ID<input id="idvSelfie" type="file" accept="image/*" capture="user"><span id="idvSelfieOk"></span></label>
+    <label class="filebtn">Photo 1: front of your ID (on a plain dark background)<input id="idvPhoto" type="file" accept="image/*" capture="environment"><span id="idvPhotoOk"></span></label>
+    <label class="filebtn">Photo 2: selfie holding your ID next to your face<input id="idvSelfie" type="file" accept="image/*" capture="user"><span id="idvSelfieOk"></span></label>
     <label class="consent"><input type="checkbox" id="idvConsent"><span>I agree NOIR can look at these photos to confirm who I am. They're encrypted and deleted as soon as my check is done (30 days at most). See the <a href="privacy.html" target="_blank">privacy policy</a>.</span></label>
     <button id="idvGo">Send for review</button>
     <div class="error" id="idvErr"></div>
@@ -438,9 +483,9 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
       <div id="acVerify"></div>
     </div>
     <div class="ac-sec">
-      <div class="ac-k">YOUR NAME</div>
-      <div class="ac-row"><input id="acName" placeholder="First and last name" maxlength="60" autocomplete="name"><button class="ac-btn" id="acSave">Save</button></div>
-      <div class="ac-note">Shown as first name + last initial when you post a review.</div>
+      <div class="ac-k">USERNAME</div>
+      <div class="ac-row"><input id="acName" placeholder="Pick a username" maxlength="20" autocomplete="username" autocapitalize="off" spellcheck="false"><button class="ac-btn" id="acSave">Save</button></div>
+      <div class="ac-note">3–20 letters, numbers, _ or . — shown on your reviews. Each username can only belong to one person.</div>
       <div class="ac-ok" id="acSaved"></div>
     </div>
     <div class="ac-sec">
@@ -1248,7 +1293,7 @@ function renderAcct(){
       // one button: opens the Account panel (details, verification, name, orders, sign out)
       const btn = document.createElement("button"); btn.className = "acctbtn";
       btn.setAttribute("aria-label", "Your account");
-      const who = document.createElement("span"); who.className = "who"; who.textContent = me.name ? me.name.split(" ")[0] : me.email;
+      const who = document.createElement("span"); who.className = "who"; who.textContent = me.username || me.email;
       const tier = document.createElement("span"); tier.className = "tier";
       tier.textContent = me.tier === "verified" ? "✓ VERIFIED" : vs === "pending" ? "ID IN REVIEW" : "ACCOUNT";
       btn.append(who, tier);
@@ -1422,7 +1467,7 @@ function openAccount(){
       v.append(note, go);
     }
   }
-  $("acName").value = me.name || "";
+  $("acName").value = me.username || "";
   $("acSaved").textContent = "";
   const list = $("acOrders");
   list.innerHTML = "";
@@ -1453,15 +1498,16 @@ function openAccount(){
 $("acClose").addEventListener("click", () => ($("acctModal").hidden = true));
 $("acctModal").addEventListener("click", (e) => { if(e.target.id === "acctModal") $("acctModal").hidden = true; });
 $("acOut").addEventListener("click", async () => { $("acctModal").hidden = true; await signOut(); });
+$("acName").addEventListener("keydown", (e) => { if(e.key === "Enter") $("acSave").click(); });
 $("acSave").addEventListener("click", async () => {
   const btn = $("acSave"), ok = $("acSaved");
   btn.disabled = true; ok.style.color = "#7c7"; ok.textContent = "";
   try{
     const r = await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "profile", name: $("acName").value }) });
+      body: JSON.stringify({ action: "username", username: $("acName").value.trim() }) });
     const d = await r.json().catch(() => ({}));
     if(!r.ok) throw new Error(d.error || "Couldn't save that.");
-    me.name = d.name; ok.textContent = "Saved ✓"; renderAcct();
+    me.username = d.username; $("acName").value = d.username; ok.textContent = "Saved ✓ — you're @" + d.username; renderAcct();
   }catch(e){ ok.style.color = "#e77"; ok.textContent = e.message; }
   btn.disabled = false;
 });

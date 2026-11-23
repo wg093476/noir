@@ -32,6 +32,7 @@ border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,
 font-size:22px;letter-spacing:2px;word-break:break-all;
 }
 .label{color:#666;font-size:11px;margin-top:14px}
+.as{color:#999;font-size:12px;margin:4px 0 10px}
 .label.small{font-size:10px;margin-top:22px}
 .serial{color:#777;font-size:11px;word-break:break-all;margin-top:6px;letter-spacing:.5px}
 .copy.small{font-size:11px;padding:6px 12px}
@@ -160,14 +161,20 @@ function askReview(){
     pick.append(b);
   }
   document.getElementById("review").classList.add("on");
-  // signed in with a saved name? fill it in
+  // signed in with a username? the review is posted under it, so no name box
   fetch("/api/account", { cache: "no-store" }).then(r => r.json()).then(a => {
+    if(!a || !a.username) return;
     const f = document.getElementById("rName");
-    if(a && a.name && !f.value) f.value = a.name;
+    f.hidden = true; f.dataset.user = a.username;
+    const n = document.createElement("div"); n.className = "as"; n.id = "rAs";
+    n.textContent = "Posting as " + a.username;
+    f.after(n);
   }).catch(() => {});
 }
 document.getElementById("rAnon").addEventListener("change", (e) => {
-  document.getElementById("rName").hidden = e.target.checked;
+  const f = document.getElementById("rName"), as = document.getElementById("rAs");
+  if(f.dataset.user){ if(as) as.textContent = e.target.checked ? "Posting anonymously" : "Posting as " + f.dataset.user; }
+  else f.hidden = e.target.checked;
 });
 document.getElementById("rSend").addEventListener("click", async () => {
   const btn = document.getElementById("rSend"), err = document.getElementById("rErr");
