@@ -45,7 +45,9 @@ font-family:inherit;font-size:13px;cursor:pointer;
 .review .q{font-size:15px;margin-bottom:12px}
 .pick{display:flex;justify-content:center;gap:6px;margin-bottom:14px}
 .pick button{background:none;border:none;font-size:30px;line-height:1;color:#3a3a3a;cursor:pointer;padding:2px}
-.pick button.on{color:#f5c84c}
+.pick button.on{color:#fff}
+.anon{display:flex;align-items:center;justify-content:center;gap:8px;color:#aaa;font-size:12px;margin:2px 0 12px;cursor:pointer}
+.review .anon input{width:auto;margin:0;padding:0}
 .review textarea,.review input{width:100%;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:10px;
 font-family:inherit;font-size:13px;padding:11px;outline:none;margin-bottom:10px}
 .review textarea{min-height:84px;resize:vertical}
@@ -70,9 +72,10 @@ font-family:inherit;font-size:13px;padding:11px;outline:none;margin-bottom:10px}
     <div id="more" hidden>
       <textarea id="rText" maxlength="600" placeholder="Tell other buyers how it went (optional)"></textarea>
       <input id="rName" maxlength="40" placeholder="Your first name (optional)" autocomplete="given-name">
+      <label class="anon"><input type="checkbox" id="rAnon"> Post anonymously</label>
       <button class="send" id="rSend">Post review</button>
       <div class="err" id="rErr"></div>
-      <div class="fine">Shown as your first name and last initial, with "Verified purchase". Please don't include your code or email.</div>
+      <div class="fine">Shown with a "Verified purchase" badge, as your first name and last initial or as Anonymous. Please don't include your code or email.</div>
     </div>
   </div>
   <a class="home" href="/">← back to NOIR</a>
@@ -142,13 +145,18 @@ function askReview(){
   }
   document.getElementById("review").classList.add("on");
 }
+document.getElementById("rAnon").addEventListener("change", (e) => {
+  document.getElementById("rName").hidden = e.target.checked;
+});
 document.getElementById("rSend").addEventListener("click", async () => {
   const btn = document.getElementById("rSend"), err = document.getElementById("rErr");
   err.textContent = "";
   if(!rating) return (err.textContent = "Tap the stars first.");
   btn.disabled = true; btn.textContent = "Posting…";
   try{
-    const body = { rating, text: document.getElementById("rText").value, name: document.getElementById("rName").value };
+    const anonymous = document.getElementById("rAnon").checked;
+    const body = { rating, text: document.getElementById("rText").value, anonymous,
+      name: anonymous ? "" : document.getElementById("rName").value };
     if(sessionId) body.session_id = sessionId; else body.payment_intent = intentId;
     const r = await fetch("/api/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));

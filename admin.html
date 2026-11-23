@@ -30,7 +30,7 @@ button:disabled{opacity:.5}
 h2.sec{font-size:18px;margin:46px 0 6px;color:#fff;font-weight:500}
 .rv{border:1px solid rgba(255,255,255,.12);padding:14px 16px;margin:10px 0;display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
 .rv.hid{opacity:.45}
-.rv .stars{color:#f5c84c}
+.rv .stars{color:#fff}
 .rv p{color:#ccc;font-size:12px;margin:6px 0}
 .rv small{color:#777;font-size:11px}
 @media(max-width:700px){.photos{grid-template-columns:1fr}}
@@ -43,7 +43,7 @@ h2.sec{font-size:18px;margin:46px 0 6px;color:#fff;font-weight:500}
 <p class="note" id="who">Loading…</p>
 <div id="list"></div>
 <h2 class="sec" id="revHead" hidden>Reviews</h2>
-<p class="note" id="revNote" hidden>Every review is from a completed order. Hide ones that are abusive or share personal info (codes, emails, phone numbers) — you can't edit them, and hidden ones can be shown again.</p>
+<p class="note" id="revNote" hidden>Reviews come from completed website orders and from pre-launch customers (in api/_early-reviews.js). Hide ones that are abusive or share personal info (codes, emails, phone numbers) — you can't edit them, and hidden ones can be shown again.</p>
 <div id="revs"></div>
 </main>
 <script>
@@ -87,7 +87,7 @@ async function loadReviews() {
       el("div", {},
         el("span", { class: "stars", textContent: "★".repeat(rv.rating) + "☆".repeat(5 - rv.rating) }),
         el("p", { textContent: rv.text || "(no text)" }),
-        el("small", { textContent: `${rv.name} · ${rv.brand}${rv.amount ? " $" + rv.amount : ""} · ${new Date(rv.at).toLocaleString()}${rv.hidden ? " · HIDDEN" : ""}` })),
+        el("small", { textContent: `${rv.name}${rv.brand ? " · " + rv.brand : ""}${rv.amount ? " $" + rv.amount : ""} · ${rv.source === "early" ? "pre-launch customer" : new Date(rv.at).toLocaleString()}${rv.hidden ? " · HIDDEN" : ""}` })),
       btn);
     btn.onclick = async () => {
       btn.disabled = true;

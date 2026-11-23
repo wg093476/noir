@@ -12,80 +12,40 @@
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/site.css">
 <style>
-main{max-width:900px}
+main{max-width:1000px}
 h1{font-family:'Pixelify Sans',sans-serif;font-size:30px;letter-spacing:3px;text-align:center;margin-bottom:6px}
 .lead{text-align:center;color:#8a8a8a;font-size:12px;margin-bottom:30px}
-.stars{color:#f5c84c;letter-spacing:1px}
-.summary{display:grid;grid-template-columns:220px 1fr;gap:28px;align-items:center;
-  background:#0b0b0b;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:26px 28px;margin-bottom:22px}
-.score{text-align:center}
-.score .num{font-family:'Pixelify Sans',sans-serif;font-size:56px;color:#fff;line-height:1}
-.score .stars{font-size:20px;display:block;margin:8px 0 6px}
-.score .cnt{color:#8a8a8a;font-size:12px}
-.bars button{display:grid;grid-template-columns:56px 1fr 44px;align-items:center;gap:12px;width:100%;
-  background:none;border:none;color:#bbb;font-family:inherit;font-size:12px;padding:5px 0;cursor:pointer;text-align:left}
-.bars button:hover,.bars button.on{color:#fff}
-.bar{height:8px;border-radius:8px;background:#1b1b1b;overflow:hidden}
-.bar i{display:block;height:100%;background:#f5c84c;border-radius:8px}
-.filter{text-align:center;color:#8a8a8a;font-size:12px;min-height:18px;margin-bottom:12px}
+.filter{text-align:center;color:#8a8a8a;font-size:12px;min-height:18px;margin-bottom:14px}
 .filter button{background:none;border:none;color:#fff;text-decoration:underline;font-family:inherit;font-size:12px;cursor:pointer}
-.list{display:grid;gap:12px}
-.rv{background:#0b0b0b;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px 20px}
-.rv .rtop{display:flex;justify-content:space-between;gap:10px;align-items:center}
-.rv .when{color:#666;font-size:11px}
-.rv p{color:#d6d6d6;font-size:13px;line-height:1.75;margin:10px 0 10px;word-wrap:break-word}
-.rv .by{color:#888;font-size:11px}
-.rv .by b{color:#fff;font-weight:500}
-.vp{color:#7fd29a}
-.more{display:block;margin:20px auto 0;padding:12px 22px;border-radius:10px;background:#141414;color:#fff;
-  border:1px solid rgba(255,255,255,.15);font-family:inherit;font-size:13px;cursor:pointer}
+.list{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.nr-btn.more{display:block;margin:22px auto 0}
 .more[hidden]{display:none}
 .empty{background:#0b0b0b;border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:40px 26px;text-align:center}
 .empty p{color:#aaa}
+.empty .nr-btn{margin-top:14px}
 .how{color:#777;font-size:11.5px;line-height:1.8;text-align:center;margin-top:30px}
-.cta{display:inline-block;margin-top:14px;padding:12px 22px;border-radius:10px;background:#fff;color:#000;text-decoration:none;font-size:13px}
-@media (max-width:640px){ .summary{grid-template-columns:1fr;padding:22px 18px} }
+@media (max-width:700px){ .list{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
 <header class="top"><a href="index.html">NOIR</a></header>
 <main>
 <h1>REVIEWS</h1>
-<div class="lead">Every review comes from a real, completed NOIR order. We never edit them.</div>
+<div class="lead">What buyers say about NOIR. "Verified purchase" reviews come from orders on this site; "Verified customer" reviews come from customers who bought from NOIR before the site launched. We never edit reviews.</div>
 
 <div id="content"><p class="lead">Loading…</p></div>
 
-<div class="how">Only buyers can review: after your code appears, the order page asks how it went. We hide reviews only if they're abusive or share personal details.</div>
+<div class="how">Only buyers can review: after your code appears, the order page asks how it went. You can post with your first name or anonymously. We hide reviews only if they're abusive or share personal details.</div>
 </main>
+<script src="assets/reviews-ui.js"></script>
 <script>
-const $ = (id) => document.getElementById(id);
-const starText = (n) => "★★★★★".slice(0, Math.round(n)) + "☆☆☆☆☆".slice(0, 5 - Math.round(n));
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-const ago = (t) => {
-  const d = Math.floor((Date.now() - t) / 86400000);
-  if (d < 1) return "today";
-  if (d === 1) return "yesterday";
-  if (d < 30) return d + " days ago";
-  return new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-};
+const R = window.NOIRReviews, el = R.el;
 let stars = 0, offset = 0, list, moreBtn, filterLine;
-
-function review(rv) {
-  const c = el("div", "rv");
-  const top = el("div", "rtop");
-  top.append(el("span", "stars", starText(rv.rating)), el("span", "when", ago(rv.at)));
-  c.append(top);
-  if (rv.text) c.append(el("p", null, rv.text));
-  const by = el("div", "by");
-  by.append(el("b", null, rv.name), el("span", "vp", " ✓ Verified purchase"), ` · ${rv.brand}${rv.amount ? " $" + rv.amount : ""}`);
-  c.append(by);
-  return c;
-}
 
 async function page(reset) {
   if (reset) { offset = 0; list.innerHTML = ""; }
-  const d = await (await fetch(`/api/order?reviews=1&limit=20&offset=${offset}${stars ? "&stars=" + stars : ""}`)).json();
-  d.reviews.forEach((rv) => list.append(review(rv)));
+  const d = await R.fetchReviews({ limit: 20, offset, stars });
+  d.reviews.forEach((rv) => list.append(R.card(rv)));
   offset += d.reviews.length;
   moreBtn.hidden = offset >= d.total;
   filterLine.innerHTML = "";
@@ -93,48 +53,33 @@ async function page(reset) {
     filterLine.append(`Showing ${d.total} ${stars}-star review${d.total === 1 ? "" : "s"} · `);
     const all = el("button", null, "show all"); all.onclick = () => setStars(0); filterLine.append(all);
   }
-  return d;
 }
 function setStars(n) {
-  stars = n;
-  document.querySelectorAll(".bars button").forEach((b) => b.classList.toggle("on", Number(b.dataset.s) === n));
+  stars = stars === n ? 0 : n;
+  document.querySelectorAll(".nr-bar").forEach((b) => b.classList.toggle("on", Number(b.dataset.s) === stars));
   page(true);
 }
 
 async function load() {
-  const box = $("content");
+  const box = document.getElementById("content");
   let d;
-  try { d = await (await fetch("/api/order?reviews=1&limit=20")).json(); }
+  try { d = await R.fetchReviews({ limit: 20 }); }
   catch { box.innerHTML = '<p class="lead">Reviews couldn\'t load — try again in a minute.</p>'; return; }
   box.innerHTML = "";
   if (!d.count) {
     const e = el("div", "empty");
-    e.append(el("p", null, "No reviews yet. We only show reviews from real orders, so this fills up as people buy."));
-    const a = el("a", "cta", "Browse gift cards"); a.href = "index.html"; e.append(a);
+    e.append(el("p", null, "No reviews yet. Reviews come from real orders, so this fills up as people buy."));
+    const a = el("a", "nr-btn", "Browse gift cards"); a.href = "index.html"; e.append(a);
     box.append(e);
     return;
   }
-  const sum = el("div", "summary");
-  const score = el("div", "score");
-  score.append(el("div", "num", d.average.toFixed(1)), el("span", "stars", starText(d.average)),
-    el("div", "cnt", `${d.count} verified review${d.count === 1 ? "" : "s"}`));
-  const bars = el("div", "bars");
-  [5, 4, 3, 2, 1].forEach((n) => {
-    const b = el("button"); b.dataset.s = n;
-    const pct = d.count ? Math.round((d.breakdown[n] / d.count) * 100) : 0;
-    const bar = el("span", "bar"); const fill = el("i"); fill.style.width = pct + "%"; bar.append(fill);
-    b.append(el("span", null, `${n} star`), bar, el("span", null, `${pct}%`));
-    b.title = `Show ${n}-star reviews`;
-    b.onclick = () => setStars(stars === n ? 0 : n);
-    bars.append(b);
-  });
-  sum.append(score, bars);
+  if (d.sample) box.append(R.sampleBanner());
   filterLine = el("div", "filter");
   list = el("div", "list");
-  moreBtn = el("button", "more", "Show more reviews");
+  moreBtn = el("button", "nr-btn more", "Show more reviews");
   moreBtn.onclick = () => page(false);
-  box.append(sum, filterLine, list, moreBtn);
-  d.reviews.forEach((rv) => list.append(review(rv)));
+  box.append(R.summary(d, setStars), filterLine, list, moreBtn);
+  d.reviews.forEach((rv) => list.append(R.card(rv)));
   offset = d.reviews.length;
   moreBtn.hidden = offset >= d.total;
 }
