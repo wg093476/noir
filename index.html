@@ -248,6 +248,9 @@ background:#0f0f0f;border:1px solid rgba(255,255,255,.12);color:#d0d0d0;font-siz
 .paywith .mark.light{background:#fff;padding:0 10px;display:inline-flex;align-items:center}
 .paywith .mark.light img{height:12px}
 .paywith .mark.light img[alt="Mastercard"]{height:14px}
+.paywith .mark.coins{gap:5px;padding:0 9px}
+.paywith .mark.coins img{height:16px;width:16px}
+.paywith .mark.coins b{font-weight:600;font-size:10px;color:#444;margin-left:2px}
 
 /* reviews on the home page */
 .reviews-home{width:100%;max-width:1000px;margin:64px auto 0;display:none}
@@ -439,8 +442,9 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <span class="mark dark"><img src="assets/payment/google-pay.png" alt="Google Pay" width="46" height="28"></span>
     <span class="mark light"><img src="assets/payment/visa.png" alt="Visa" width="36" height="12"></span>
     <span class="mark light"><img src="assets/payment/mastercard.png" alt="Mastercard" width="74" height="14"></span>
-    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Amex</span><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>Discover</span>
-    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4m0 0h4.5a2 2 0 0 1 0 4H9.5m0-8v8M11 7v1.5m0 8V18"/></svg>Crypto</span>
+    <span class="mark"><img src="assets/payment/amex.png" alt="American Express" width="28" height="28"></span>
+    <span class="mark"><img src="assets/payment/discover.png" alt="Discover" width="44" height="28"></span>
+    <span class="mark light coins" title="Bitcoin, Ethereum, USDC and more"><img src="assets/payment/bitcoin.svg" alt="Bitcoin" width="16" height="16"><img src="assets/payment/ethereum.svg" alt="Ethereum" width="16" height="16"><img src="assets/payment/usdc.svg" alt="USDC" width="16" height="16"><b>+ more</b></span>
   </div>
 
   <div class="steps">
