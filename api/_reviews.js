@@ -4,6 +4,7 @@
 
 import crypto from "node:crypto";
 import { redis } from "./_limits.js";
+import { EARLY_REVIEWS } from "./_early-reviews.js";
 
 const KEEP = 2000; // newest reviews kept
 
@@ -13,13 +14,13 @@ const clean = (s, max) =>
 // "cohen example" -> "Cohen E."   (first name + last initial, never a full name)
 function displayName(raw) {
   const parts = clean(raw, 40).split(" ").filter((w) => /^[\p{L}'-]+$/u.test(w));
-  if (!parts.length) return "Verified buyer";
+  if (!parts.length) return "Anonymous";
   const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   return parts.length > 1 ? `${cap(parts[0])} ${parts.at(-1).charAt(0).toUpperCase()}.` : cap(parts[0]);
 }
 
 // order = { key, brand, amount } of a completed order
-export async function addReview(order, { rating, text, name }, ip) {
+export async function addReview(order, { rating, text, name, anonymous }, ip) {
   const r = Number(rating);
   if (!Number.isInteger(r) || r < 1 || r > 5) return { error: "Pick 1 to 5 stars.", status: 400 };
   const body = clean(text, 600);
@@ -37,7 +38,8 @@ export async function addReview(order, { rating, text, name }, ip) {
     id: crypto.randomBytes(8).toString("hex"),
     rating: r,
     text: body,
-    name: displayName(name),
+    name: anonymous === true ? "Anonymous" : displayName(name),
+    verified: true, // it came from a completed order
     brand: clean(order.brand, 40) || "Gift card",
     amount: Number(order.amount) || null,
     at: Date.now(),
@@ -50,8 +52,9 @@ export async function addReview(order, { rating, text, name }, ip) {
 async function all() {
   const raw = (await redis("LRANGE", "reviews", 0, KEEP - 1)) || [];
   const hidden = new Set((await redis("SMEMBERS", "reviews:hidden")) || []);
-  return raw.map((s) => { try { return JSON.parse(s); } catch { return null; } })
-    .filter(Boolean).map((rv) => ({ ...rv, hidden: hidden.has(rv.id) }));
+  const fromSite = raw.map((s) => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
+  // website reviews (newest first), then reviews from customers who bought before launch
+  return [...fromSite, ...EARLY_REVIEWS].map((rv) => ({ ...rv, hidden: hidden.has(rv.id) }));
 }
 
 // Public: summary + a page of visible reviews (newest first, optionally only N stars).
