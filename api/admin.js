@@ -6,7 +6,7 @@
 // Either way the photos are deleted straight away.
 //   GET ?reviews=1               -> newest reviews (including hidden)
 //   POST { action: "review", reviewId, hide: true|false } -> hide / show a review
-import { json } from "./_lib.js";
+import { json, walletBalance, settings } from "./_lib.js";
 import { accountsEnabled, currentUser } from "./_limits.js";
 import { isAdmin, listPending, getPhoto, decide, REJECT_REASONS } from "./_verify.js";
 import { adminReviews, setHidden } from "./_reviews.js";
@@ -31,7 +31,8 @@ export async function GET(request) {
       if (!img) return json({ error: "Photo not found." }, 404, NO_STORE);
       return new Response(img, { status: 200, headers: { "content-type": "image/jpeg", ...NO_STORE } });
     }
-    return json({ admin: user.email, pending: await listPending(), reasons: REJECT_REASONS }, 200, NO_STORE);
+    const wallet = await walletBalance({ fresh: true });
+    return json({ admin: user.email, pending: await listPending(), reasons: REJECT_REASONS, wallet, walletMode: settings().reloadlyMode, lowBalance: Number(process.env.LOW_BALANCE_USD || 200) }, 200, NO_STORE);
   } catch (err) {
     console.error(err);
     return json({ error: "Something went wrong." }, 500, NO_STORE);

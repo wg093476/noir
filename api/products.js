@@ -1,5 +1,5 @@
 // GET /api/products  ->  list of gift cards you can sell (from Reloadly)
-import { getCatalog, publicProduct, cryptoEnabled, json } from "./_lib.js";
+import { sellableCatalog, publicProduct, cryptoEnabled, json } from "./_lib.js";
 
 function publishableKey() {
   const k = (process.env.STRIPE_PUBLISHABLE_KEY || "").trim();
@@ -8,7 +8,7 @@ function publishableKey() {
 
 export async function GET() {
   try {
-    const items = (await getCatalog()).map(publicProduct);
+    const items = (await sellableCatalog()).map(publicProduct);
     return json({
       products: items,
       crypto: cryptoEnabled(),
@@ -16,7 +16,7 @@ export async function GET() {
       // Only ever send a pk_ key, so a secret key pasted in the wrong box never leaks.
       stripeKey: publishableKey(),
     }, 200, {
-      "cache-control": "public, s-maxage=600, stale-while-revalidate=3600",
+      "cache-control": "public, s-maxage=60, stale-while-revalidate=600",
     });
   } catch (err) {
     console.error(err);

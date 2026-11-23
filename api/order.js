@@ -2,13 +2,20 @@
 // GET /api/order?session_id=cs_...       (card checkout page)
 //   ->  order status, and the code once it's ready. The success page polls this.
 // GET  /api/order?reviews=1[&offset=0&stars=5]  -> public reviews + rating summary
-// POST /api/order { session_id | payment_intent, rating, text, name } -> review a completed order
+// POST /api/order { session_id | payment_intent | review, rating, text, name } -> review a completed order
+//   (review = the token from the link in a crypto order email)
 import { fulfill, fulfillPaymentIntent, reloadly, findProduct, json, deliveredCount } from "./_lib.js";
-import { accountsEnabled, clientIp } from "./_limits.js";
+import { accountsEnabled, clientIp, redis } from "./_limits.js";
 import { addReview, listReviews } from "./_reviews.js";
 
 // Look up a completed order from the link on the success page.
-async function completedOrder(sessionId, piId) {
+async function completedOrder(sessionId, piId, reviewToken) {
+  // crypto orders: the review link in the order email carries a one-off token
+  if (/^[A-Za-z0-9_-]{20,40}$/.test(reviewToken || "")) {
+    const saved = JSON.parse((await redis("GET", "cryptoreview:" + reviewToken)) || "null");
+    if (!saved) return null;
+    return { state: "done", pi: { id: "crypto:" + saved.orderId, metadata: { productId: saved.productId, amount: saved.amount } } };
+  }
   let result;
   try {
     if (/^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId || "")) result = await fulfill(sessionId);
@@ -25,7 +32,7 @@ export async function POST(request) {
   let body;
   try { body = await request.json(); } catch { return json({ error: "Bad request." }, 400); }
   try {
-    const result = await completedOrder(body.session_id, body.payment_intent);
+    const result = await completedOrder(body.session_id, body.payment_intent, body.review);
     if (!result) return json({ error: "Only completed orders can be reviewed." }, 403);
     const meta = result.pi.metadata || {};
     const product = await findProduct(meta.productId).catch(() => null);

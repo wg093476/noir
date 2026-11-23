@@ -2,7 +2,7 @@
 // The customer picks BTC, ETH, USDT, USDC or another coin on that page.
 import {
   findProduct, isValidAmount, priceFor, json,
-  cryptoEnabled, cryptoSandbox, nowpayments, makeCryptoOrderId,
+  cryptoEnabled, cryptoSandbox, nowpayments, makeCryptoOrderId, walletCovers, OUT_OF_STOCK,
 } from "./_lib.js";
 import { accountsEnabled, buyer, remaining, limitMessage, redis } from "./_limits.js";
 
@@ -25,6 +25,7 @@ export async function POST(request) {
     const product = await findProduct(body.productId);
     if (!product) return json({ error: "Gift card not found." }, 404);
     if (!isValidAmount(product, amount)) return json({ error: "That amount isn't available." }, 400);
+    if (!(await walletCovers(product, amount))) return json({ error: OUT_OF_STOCK, stock: true }, 409);
 
     // Crypto can't be refunded automatically, so the daily limit is checked here, before paying.
     const who = await buyer(request, email);

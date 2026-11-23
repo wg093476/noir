@@ -4,7 +4,8 @@
 
 import crypto from "node:crypto";
 import { accountsEnabled, reserve, release, normEmail, redis } from "./_limits.js";
-import { effectiveTier } from "./_verify.js";
+import { effectiveTier, adminEmails } from "./_verify.js";
+import { sendEmail } from "./_limits.js";
 
 // ---------- settings (from Vercel Environment Variables) ----------
 
@@ -86,6 +87,79 @@ export async function reloadly(path, { method = "GET", body } = {}) {
     throw err;
   }
   return data;
+}
+
+// ---------- Reloadly wallet ----------
+// Each card is paid for from the Reloadly wallet when the order is placed. Checking the balance
+// first means a customer is never charged for a card the wallet can't cover, and the owner gets
+// an email when it runs low.
+
+let walletCache = { balance: null, at: 0 };
+
+// Wallet balance in USD, cached for a minute. null = unknown (then sales are not blocked).
+export async function walletBalance({ fresh = false } = {}) {
+  if (!fresh && walletCache.at && Date.now() - walletCache.at < 60 * 1000) return walletCache.balance;
+  try {
+    const d = await reloadly("/accounts/balance");
+    const b = Number(d.balance);
+    if (!Number.isFinite(b)) return null;
+    walletCache = { balance: b, at: Date.now() };
+    lowBalanceAlert(b).catch((e) => console.error("low balance email failed:", e.message));
+    return b;
+  } catch (err) {
+    console.error("wallet balance check failed:", err.message);
+    walletCache = { balance: null, at: Date.now() }; // don't retry on every request
+    return null;
+  }
+}
+
+// true if the wallet can pay for this card right now
+export async function walletCovers(product, amount) {
+  const b = await walletBalance();
+  return b === null || priceFor(product, amount).cost <= b;
+}
+
+export const OUT_OF_STOCK =
+  "That amount is out of stock for a moment. Try a smaller amount, or check back in a little while.";
+
+// Email the owner (ADMIN_EMAILS) when the wallet drops below LOW_BALANCE_USD (default $200).
+// At most one email every 6 hours.
+async function lowBalanceAlert(balance) {
+  const threshold = Number(process.env.LOW_BALANCE_USD || 200);
+  if (!(balance < threshold) || !accountsEnabled() || !process.env.RESEND_API_KEY) return;
+  const first = await redis("SET", "alert:lowbalance", "1", "NX", "EX", 6 * 60 * 60);
+  if (first !== "OK") return;
+  const mode = settings().reloadlyMode === "live" ? "" : " (test mode)";
+  const text =
+    `Your Reloadly wallet is down to $${balance.toFixed(2)}${mode}.\n\n` +
+    `Card amounts the wallet can't cover are hidden on noirgc.com until you top it up.\n` +
+    `Top up at https://www.reloadly.com (Wallet -> Add funds). ACH or wire avoids card fees.`;
+  for (const to of adminEmails()) await sendEmail(to, `NOIR: Reloadly wallet at $${balance.toFixed(2)}`, text);
+}
+
+// Catalog as the customer sees it: amounts the wallet can't cover right now are left out.
+export async function sellableCatalog() {
+  const items = await getCatalog();
+  const b = await walletBalance();
+  if (b === null) return items;
+  const out = [];
+  for (const p of items) {
+    if (p.type === "fixed") {
+      const amounts = p.amounts.filter((a) => priceFor(p, a).cost <= b);
+      if (amounts.length) out.push({ ...p, amounts });
+    } else {
+      // largest whole-dollar amount the wallet covers
+      if (priceFor(p, p.max).cost <= b) { out.push(p); continue; }
+      let lo = Math.ceil(p.min), hi = Math.floor(p.max); // find the largest covered amount
+      if (priceFor(p, lo).cost > b) continue;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (priceFor(p, mid).cost <= b) lo = mid; else hi = mid - 1;
+      }
+      out.push({ ...p, max: lo });
+    }
+  }
+  return out;
 }
 
 // ---------- catalog + pricing ----------
@@ -233,6 +307,7 @@ export async function placeOrder({ productId, amount, email, orderRef }) {
     },
   });
   countDelivered().catch(() => {}); // never let the counter affect an order
+  walletCache.at = 0; // the wallet just paid for a card: check the balance again next time
   return order;
 }
 
