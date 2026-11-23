@@ -58,7 +58,7 @@
     const meta = el("div", "nr-meta");
     if (rv.verified === true && !rv.sample)
       meta.append(el("span", "nr-ver", rv.source === "early" ? "✓ Verified customer" : "✓ Verified purchase"));
-    meta.append(el("span", null, rv.source === "early" ? "Pre-launch" : ago(rv.at)));
+    if (rv.source !== "early") meta.append(el("span", null, ago(rv.at)));
     who.append(nm, meta);
     head.append(avatar(rv.name), who);
     c.append(head, stars(rv.rating));
