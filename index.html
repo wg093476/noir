@@ -321,6 +321,31 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .acct button:hover{background:#fff;color:#000}
 .acct .tier{border:1px solid rgba(255,255,255,.2);padding:3px 7px;color:#ccc}
 .acct .who{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct .acctbtn{display:inline-flex;align-items:center;gap:8px}
+.acct .acctbtn .tier{border:none;padding:0;color:inherit;opacity:.7;font-size:10px}
+.acct .acctbtn:hover .tier{opacity:1}
+.modal .box.wide{max-width:440px;text-align:left;max-height:88vh;overflow:auto}
+.modal .box.wide .mtitle,.modal .box.wide .msub{text-align:center}
+.modal .box.wide > .back{display:block;margin-left:auto;margin-right:auto}
+.ac-sec{border-top:1px solid rgba(255,255,255,.1);padding:16px 0}
+.ac-sec:first-of-type{border-top:none;padding-top:4px}
+.ac-k{color:#666;font-size:10px;letter-spacing:1px;margin-bottom:6px}
+.ac-v{font-size:13px;color:#ddd;line-height:1.6;word-break:break-all}
+.ac-badge{display:inline-block;border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:2px 7px;font-size:10px;letter-spacing:1px;margin-left:6px;color:#fff}
+.ac-row{display:flex;gap:8px}
+.ac-row input{margin:0!important;text-align:left!important;flex:1}
+.ac-btn{padding:11px 14px;background:#fff;color:#000;border:none;font-family:inherit;font-size:12px;cursor:pointer;border-radius:0;white-space:nowrap}
+.ac-btn.ghost{background:none;color:#fff;border:1px solid rgba(255,255,255,.3)}
+.ac-btn:disabled{opacity:.5}
+.ac-note{color:#777;font-size:11px;line-height:1.6;margin-top:6px}
+.ac-ok{color:#7c7;font-size:11px;margin-top:6px;min-height:14px}
+.ac-orders{list-style:none;margin:0;padding:0}
+.ac-orders li{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px}
+.ac-orders li:last-child{border-bottom:none}
+.ac-orders img{width:38px;height:24px;object-fit:cover;border-radius:4px;background:#111}
+.ac-orders .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ddd}
+.ac-orders .d{color:#666;font-size:10px}
+.ac-orders a{color:#fff;font-size:11px;white-space:nowrap}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal[hidden]{display:none}
 .modal .box{background:#0a0a0a;border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:34px 28px;width:100%;max-width:380px;text-align:center}
@@ -400,6 +425,32 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <div class="error" id="idvErr"></div>
     <div class="perks">Pay with a card in your own name to use the higher limit.</div>
     <button class="back" id="idvClose">close</button>
+  </div>
+</div>
+
+<div class="modal" id="acctModal" hidden>
+  <div class="box wide" role="dialog" aria-label="Your account">
+    <div class="mtitle">ACCOUNT</div>
+    <div class="msub" id="acSub"></div>
+    <div class="ac-sec">
+      <div class="ac-k">LEVEL &amp; DAILY LIMIT</div>
+      <div class="ac-v" id="acLevel"></div>
+      <div id="acVerify"></div>
+    </div>
+    <div class="ac-sec">
+      <div class="ac-k">YOUR NAME</div>
+      <div class="ac-row"><input id="acName" placeholder="First and last name" maxlength="60" autocomplete="name"><button class="ac-btn" id="acSave">Save</button></div>
+      <div class="ac-note">Shown as first name + last initial when you post a review.</div>
+      <div class="ac-ok" id="acSaved"></div>
+    </div>
+    <div class="ac-sec">
+      <div class="ac-k">RECENT ORDERS</div>
+      <ul class="ac-orders" id="acOrders"></ul>
+    </div>
+    <div class="ac-sec" style="text-align:center">
+      <button class="ac-btn ghost" id="acOut">Sign out</button>
+    </div>
+    <button class="back" id="acClose">close</button>
   </div>
 </div>
 
@@ -1189,17 +1240,20 @@ function renderAcct(){
   box.innerHTML = "";
   if(me && me.accounts){
     if(me.signedIn){
-      const who = document.createElement("span"); who.className = "who"; who.textContent = me.email;
-      const tier = document.createElement("span"); tier.className = "tier";
       const vs = me.verification && me.verification.status;
-      tier.textContent = me.tier === "verified" ? "VERIFIED" : vs === "pending" ? "ID IN REVIEW" : "ACCOUNT";
-      const out = document.createElement("button"); out.textContent = "Sign out"; out.onclick = signOut;
-      box.append(who, tier);
       if(me.admin){
-        const a = document.createElement("a"); a.href = "admin.html"; a.textContent = "Review IDs"; a.style.color = "#fff";
+        const a = document.createElement("a"); a.href = "admin.html"; a.textContent = "Admin"; a.style.color = "#fff";
         box.append(a);
       }
-      box.append(out);
+      // one button: opens the Account panel (details, verification, name, orders, sign out)
+      const btn = document.createElement("button"); btn.className = "acctbtn";
+      btn.setAttribute("aria-label", "Your account");
+      const who = document.createElement("span"); who.className = "who"; who.textContent = me.name ? me.name.split(" ")[0] : me.email;
+      const tier = document.createElement("span"); tier.className = "tier";
+      tier.textContent = me.tier === "verified" ? "✓ VERIFIED" : vs === "pending" ? "ID IN REVIEW" : "ACCOUNT";
+      btn.append(who, tier);
+      btn.onclick = openAccount;
+      box.append(btn);
     }else{
       const b = document.createElement("button"); b.textContent = "Sign in"; b.onclick = openSignin;
       box.appendChild(b);
@@ -1339,6 +1393,79 @@ async function siSubmit(){
 $("siGo").addEventListener("click", siSubmit);
 $("siEmail").addEventListener("keydown", (e) => { if(e.key === "Enter") siSubmit(); });
 $("siCode").addEventListener("keydown", (e) => { if(e.key === "Enter") siSubmit(); });
+/* ---------- Account panel ---------- */
+function openAccount(){
+  if(!me || !me.signedIn) return openSignin();
+  $("acctModal").hidden = false;
+  $("acSub").textContent = "Signed in as " + me.email;
+  const vs = me.verification ? me.verification.status : "none";
+  const lv = $("acLevel");
+  lv.innerHTML = "";
+  lv.append(me.tier === "verified" ? "Verified" : "Account");
+  const badge = document.createElement("span"); badge.className = "ac-badge";
+  badge.textContent = me.tier === "verified" ? "✓ VERIFIED" : vs === "pending" ? "ID IN REVIEW" : "NOT VERIFIED";
+  lv.append(badge, document.createElement("br"),
+    `${money(me.limit)} a day · ${money(me.remaining ?? me.limit)} left today`);
+  const v = $("acVerify");
+  v.innerHTML = "";
+  if(me.tier !== "verified"){
+    const note = document.createElement("div"); note.className = "ac-note";
+    if(vs === "pending"){
+      note.textContent = "Your ID is being checked by hand, usually within a day. We'll email you when it's done.";
+      v.append(note);
+    }else{
+      note.textContent = (vs === "rejected" ? "Your last check didn't go through: " + me.verification.reason + " " : "") +
+        `Get verified with a photo ID to raise your limit to ${money(me.verifiedLimit)} a day.`;
+      const go = document.createElement("button"); go.className = "ac-btn"; go.style.marginTop = "10px";
+      go.textContent = vs === "rejected" ? "Try verification again" : "Get verified";
+      go.onclick = () => { $("acctModal").hidden = true; openVerify(); };
+      v.append(note, go);
+    }
+  }
+  $("acName").value = me.name || "";
+  $("acSaved").textContent = "";
+  const list = $("acOrders");
+  list.innerHTML = "";
+  const orders = me.orders || [];
+  if(!orders.length){
+    const li = document.createElement("li"); li.style.color = "#666"; li.textContent = "No orders yet. Orders you make while signed in show up here.";
+    list.append(li);
+  }
+  for(const o of orders){
+    const li = document.createElement("li");
+    const img = document.createElement("img"); img.alt = ""; if(o.logo) img.src = o.logo;
+    const n = document.createElement("span"); n.className = "n";
+    n.textContent = `${o.name} — $${o.amount}`;
+    const d = document.createElement("div"); d.className = "d";
+    d.textContent = new Date(o.at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const mid = document.createElement("div"); mid.style.flex = "1"; mid.style.minWidth = "0"; mid.append(n, d);
+    n.style.display = "block";
+    li.append(img, mid);
+    if(o.kind === "card" && o.ref){
+      const a = document.createElement("a"); a.href = "success.html?payment_intent=" + encodeURIComponent(o.ref); a.textContent = "View code";
+      li.append(a);
+    }else{
+      const s2 = document.createElement("span"); s2.className = "d"; s2.textContent = "Code emailed"; li.append(s2);
+    }
+    list.append(li);
+  }
+}
+$("acClose").addEventListener("click", () => ($("acctModal").hidden = true));
+$("acctModal").addEventListener("click", (e) => { if(e.target.id === "acctModal") $("acctModal").hidden = true; });
+$("acOut").addEventListener("click", async () => { $("acctModal").hidden = true; await signOut(); });
+$("acSave").addEventListener("click", async () => {
+  const btn = $("acSave"), ok = $("acSaved");
+  btn.disabled = true; ok.style.color = "#7c7"; ok.textContent = "";
+  try{
+    const r = await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "profile", name: $("acName").value }) });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.error || "Couldn't save that.");
+    me.name = d.name; ok.textContent = "Saved ✓"; renderAcct();
+  }catch(e){ ok.style.color = "#e77"; ok.textContent = e.message; }
+  btn.disabled = false;
+});
+
 async function signOut(){
   try{ await fetch("/api/account", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "logout" }) }); }catch(e){}
   await loadMe();

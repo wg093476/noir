@@ -160,6 +160,11 @@ function askReview(){
     pick.append(b);
   }
   document.getElementById("review").classList.add("on");
+  // signed in with a saved name? fill it in
+  fetch("/api/account", { cache: "no-store" }).then(r => r.json()).then(a => {
+    const f = document.getElementById("rName");
+    if(a && a.name && !f.value) f.value = a.name;
+  }).catch(() => {});
 }
 document.getElementById("rAnon").addEventListener("change", (e) => {
   document.getElementById("rName").hidden = e.target.checked;
