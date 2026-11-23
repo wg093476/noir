@@ -49,9 +49,11 @@ window.NOIR = {
   <a href="privacy.html">Privacy</a>
 </nav>
 <p>NOIR is an independent reseller of digital gift cards and is not affiliated with, sponsored or endorsed by any of the brands shown. All trademarks belong to their owners.</p>
-<p>© ${year} <span data-noir-legal></span> · <a data-noir-mail-footer></a></p>`;
+<p>© ${year} <span data-noir-legal></span> · <span data-noir-loc></span> · <a data-noir-mail-footer></a> · replies <span data-noir-reply></span></p>`;
   document.body.appendChild(f);
   f.querySelector("[data-noir-legal]").textContent = N.legalName;
+  f.querySelector("[data-noir-loc]").textContent = N.location;
+  f.querySelector("[data-noir-reply]").textContent = N.responseTime;
   const mail = f.querySelector("[data-noir-mail-footer]");
   mail.href = "mailto:" + N.email;
   mail.textContent = N.email;
