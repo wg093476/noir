@@ -1,9 +1,9 @@
 // GET /api/products  ->  list of gift cards you can sell (from Reloadly)
-import { sellableCatalog, publicProduct, cryptoEnabled, json } from "./_lib.js";
+import { sellableCatalog, publicProduct, cryptoEnabled, json, paymentsReady } from "./_lib.js";
 
 function publishableKey() {
   const k = (process.env.STRIPE_PUBLISHABLE_KEY || "").trim();
-  return k.startsWith("pk_") ? k : null;
+  return k.startsWith("pk_") && paymentsReady() ? k : null;
 }
 
 export async function GET() {

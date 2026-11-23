@@ -3,7 +3,7 @@
 // Reloadly then emails the code to the customer.
 import {
   verifyNowpaymentsSignature, parseCryptoOrderId, findProduct, priceFor,
-  placeOrder, isDuplicateOrder, json,
+  placeOrder, isDuplicateOrder, json, cryptoSandbox, reloadlyLive,
 } from "./_lib.js";
 import { accountsEnabled, redis, reserve, sendEmail } from "./_limits.js";
 import { adminEmails } from "./_verify.js";
@@ -64,6 +64,12 @@ export async function POST(request) {
       console.warn("Crypto underpaid — no card sent. Refund or top-up needed:", body.order_id, body.payment_id);
     }
     return json({ received: true, status: body.payment_status });
+  }
+
+  // A NOWPayments test payment must never buy a real card.
+  if (cryptoSandbox() && reloadlyLive()) {
+    console.error("Test crypto payment ignored while Reloadly is live:", body.order_id);
+    return json({ received: true, fulfilled: false });
   }
 
   const order = parseCryptoOrderId(body.order_id);

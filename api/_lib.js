@@ -236,6 +236,22 @@ export function priceFor(product, amount) {
   return { face: round2(amount), fee: round2(total - amount), total, cost: round2(cost) };
 }
 
+// ---------- test vs live safety ----------
+// Test money must never buy a real card, and real money must never get a test card.
+// If Stripe's keys and Reloadly's mode disagree (e.g. halfway through switching to live),
+// new payments are paused instead.
+export const reloadlyLive = () => settings().reloadlyMode === "live";
+const keyMode = (k) => (/^(sk|rk|pk)_live_/.test(k) ? "live" : /^(sk|rk|pk)_test_/.test(k) ? "test" : null);
+export function paymentsReady() {
+  const want = reloadlyLive() ? "live" : "test";
+  for (const k of [process.env.STRIPE_SECRET_KEY, process.env.STRIPE_PUBLISHABLE_KEY]) {
+    const m = keyMode(String(k || "").trim());
+    if (m && m !== want) return false;
+  }
+  return true;
+}
+export const PAUSED = "Checkout is paused for a few minutes while we update the store. Please try again shortly.";
+
 // ---------- Stripe (plain REST calls) ----------
 
 function formEncode(obj, prefix, out = []) {
@@ -341,6 +357,12 @@ async function fulfillIntent(pi, email) {
   const startedAgo = Date.now() / 1000 - Number(meta.noir_started || 0);
   if (meta.noir_status === "processing" && startedAgo < 120) return { state: "processing", pi };
 
+  // A live payment while Reloadly is in test mode (or the other way round): never fill it.
+  if (typeof pi.livemode === "boolean" && pi.livemode !== reloadlyLive()) {
+    console.error("Payment mode doesn't match Reloadly mode, refunding", pi.id);
+    return refundIntent(pi, "mode_mismatch", "Stripe and Reloadly are in different modes");
+  }
+
   await stripe(`/payment_intents/${pi.id}`, {
     method: "POST",
     params: {
@@ -436,7 +458,10 @@ export async function fulfillPaymentIntent(piId) {
 
 // ---------- crypto (NOWPayments: BTC, ETH, USDT, USDC and 350+ more) ----------
 
-export const cryptoEnabled = () => Boolean(process.env.NOWPAYMENTS_API_KEY);
+// Crypto only runs when NOWPayments and Reloadly are in the same mode (test with test, live with live),
+// so a test crypto payment can never buy a real card.
+export const cryptoEnabled = () =>
+  Boolean(process.env.NOWPAYMENTS_API_KEY) && cryptoSandbox() !== reloadlyLive();
 
 // Sandbox unless NOWPAYMENTS_SANDBOX is set to "false".
 export const cryptoSandbox = () => env("NOWPAYMENTS_SANDBOX", "true") === "true";
