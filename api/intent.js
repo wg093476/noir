@@ -11,7 +11,7 @@ export async function POST(request) {
     return json({ error: "Bad request." }, 400);
   }
   const amount = Number(body.amount);
-  const email = String(body.email || "").trim();
+  let email = String(body.email || "").trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 200) {
     return json({ error: "Your wallet didn't share an email — try again or pay with card." }, 400);
   }
@@ -24,6 +24,8 @@ export async function POST(request) {
     if (!(await walletCovers(product, amount))) return json({ error: OUT_OF_STOCK, stock: true }, 409);
 
     const who = await buyer(request, email);
+    // Signed in? Send the code to the account email, not whatever email the wallet shared.
+    if (who.email) email = who.email;
     const left = await remaining(who.tier, who.ids);
     if (amount > left) return json({ error: limitMessage(who.tier, left), limit: true }, 403);
 
