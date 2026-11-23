@@ -51,7 +51,7 @@ cursor:pointer;
 user-select:none;
 }
 
-.tagline{color:#666;font-size:14px;margin-bottom:40px}
+.tagline{color:#a8a8a8;font-size:15px;margin-bottom:40px;letter-spacing:.2px}
 
 .search-wrap{position:relative;max-width:950px;margin:30px auto 0}
 
@@ -296,6 +296,15 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 .amounts button small{display:block;font-size:10px;color:#888;margin-top:3px}
 .amounts button.on small{color:#444}
 .assure{color:#666;font-size:11px;line-height:1.7;margin-top:14px}
+.about-card{color:#9a9a9a;font-size:12px;margin:-12px 0 20px}
+.redeem-box{text-align:left;margin-top:22px;border-top:1px solid rgba(255,255,255,.08)}
+.redeem-box summary{cursor:pointer;list-style:none;padding:14px 0;color:#fff;font-size:13px;display:flex;justify-content:space-between}
+.redeem-box summary::-webkit-details-marker{display:none}
+.redeem-box summary::after{content:"+";color:#777}
+.redeem-box[open] summary::after{content:"–"}
+.redeem-box ol{margin:0 0 6px 18px;color:#b5b5b5;font-size:12px;line-height:1.75}
+.redeem-box li{margin-bottom:6px}
+.redeem-box .brand-note{color:#8a8a8a;font-size:11.5px;line-height:1.7;margin:8px 0 4px}
 
 /* account + sign-in */
 .acct{position:absolute;top:16px;right:18px;display:flex;align-items:center;gap:10px;font-size:11px;color:#888;z-index:20}
@@ -388,7 +397,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 <div class="container">
 
 <div class="logo" id="home">NOIR</div>
-<div class="tagline">Gift cards. Delivered instantly.</div>
+<div class="tagline" id="tagline">Gift cards from top brands, delivered in seconds.</div>
 
 <!-- search view -->
 <div id="searchView">
@@ -407,6 +416,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
     <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Secure checkout by Stripe</span>
     <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>Automatic refund if delivery fails</span>
     <span id="stripRating" hidden></span>
+    <span id="stripDelivered" hidden></span>
   </div>
   <div class="status" id="status"></div>
   <div class="tiles loading" id="tiles" aria-label="Popular gift cards"></div>
@@ -461,6 +471,7 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 <div class="card" id="card">
   <div class="art" id="art"></div>
   <div class="name" id="name"></div>
+  <div class="about-card" id="aboutCard"></div>
   <div class="amounts" id="amounts"></div>
   <div class="amount-or" id="amountOr">or type any amount</div>
   <div class="amount-label" id="amountLabel">AMOUNT (USD)</div>
@@ -480,6 +491,15 @@ transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
   <div class="methods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Secure, encrypted checkout by Stripe</div>
   <div class="assure">Code shown instantly and emailed · Automatic refund if delivery fails</div>
   <div class="error" id="error"></div>
+  <details class="redeem-box" id="redeemBox">
+    <summary>How to redeem</summary>
+    <ol>
+      <li>Pay. Your code appears on the next page within seconds, and we email you a copy.</li>
+      <li>Copy the code (and PIN, if there is one).</li>
+      <li id="redeemStep">Enter it where the brand asks for a gift card or promo code.</li>
+    </ol>
+    <div class="brand-note" id="redeemNote"></div>
+  </details>
   <button class="back" id="back">← back</button>
 </div>
 
@@ -534,12 +554,21 @@ const SAMPLE = [
 ];
 
 let catalogFailed = false;
+// Brand art overrides: null = clean text card in NOIR's font; "assets/brands/x.jpg" = your own file.
+const ART_OVERRIDE = { fortnite: null };
+function fixArt(list){
+  list.forEach(p => {
+    const key = Object.keys(ART_OVERRIDE).find(k => (p.brand + " " + p.name).toLowerCase().includes(k));
+    if(key) p.logo = ART_OVERRIDE[key];
+  });
+  return list;
+}
 function loadCatalog(){
   if(PREVIEW){ catalog = SAMPLE; cryptoOn = true; return Promise.resolve(SAMPLE); }
   if(!catalogPromise){
     catalogPromise = fetch("/api/products")
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => { catalogFailed = false; cryptoOn = !!d.crypto; stripeKey = d.stripeKey || null; return (catalog = d.products); })
+      .then(d => { catalogFailed = false; cryptoOn = !!d.crypto; stripeKey = d.stripeKey || null; return (catalog = fixArt(d.products)); })
       .catch(() => {
         catalogPromise = null;
         catalogFailed = true;
@@ -743,6 +772,11 @@ function openProduct(p, wanted){
   const fam = family(p);
   const sizes = fam.length > 1 ? sizeLabel(p.name).replace(/^[\d,.]+\s*/, "") : "";
   $("name").textContent = fam.length > 1 ? (p.brand + " " + sizes).trim() : p.name;
+  $("aboutCard").textContent = `Digital ${p.brand} gift card · US accounts · delivered as a code`;
+  const howTo = String(p.redeem || "").replace(/\b(to|at|visit|on)(?=[A-Z])/g, "$1 ").replace(/\s+/g, " ").trim();
+  $("redeemNote").textContent = howTo ? `From ${p.brand}: ${howTo}` : "";
+  $("redeemStep").textContent = howTo ? "Follow the brand's steps below." : `Enter it where ${p.brand} asks for a gift card or promo code.`;
+  $("redeemBox").open = false;
   $("error").textContent = "";
   $("payCrypto").style.display = cryptoOn ? "inline-block" : "none";
   $("cryptoBox").style.display = "none";
@@ -1052,6 +1086,7 @@ function renderBrowse(){
     return a.brand.localeCompare(b.brand);
   });
   $("searchHint").textContent = `Search ${brandList.length} brands, or tap a card below`;
+  if(brandList.length >= 10) $("tagline").textContent = `${Math.floor(brandList.length / 10) * 10}+ gift card brands, delivered in seconds.`;
   sub.textContent = brandList.length + " brands · prices in USD · delivered instantly";
   const cats = ["All", ...CAT_ORDER.filter(c => brandList.some(b => b.cat === c))];
   const catBox = $("cats");
@@ -1102,6 +1137,11 @@ async function loadReviews(){
   if(!R) return;
   try{
     const d = await R.fetchReviews({ limit: 20 });
+    if(d.delivered >= 25){ // real website orders only (counted in live mode)
+      const sd = $("stripDelivered");
+      sd.textContent = `${d.delivered.toLocaleString("en-US")} codes delivered`;
+      sd.hidden = false;
+    }
     if(!d.count) return; // nothing until real reviews exist
     // overall rating in the trust line
     const sr = $("stripRating");
