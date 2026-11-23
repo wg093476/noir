@@ -34,11 +34,15 @@ h2.sec{font-size:18px;margin:46px 0 6px;color:#fff;font-weight:500}
 .rv p{color:#ccc;font-size:12px;margin:6px 0}
 .rv small{color:#777;font-size:11px}
 @media(max-width:700px){.photos{grid-template-columns:1fr}}
+.wallet{border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:12px 14px;font-size:13px;margin:0 0 22px}
+.wallet b{font-size:16px}
+.wallet.low{border-color:#e5484d;color:#ffb4b6}
 </style>
 </head>
 <body>
 <header class="top"><a href="index.html">NOIR</a></header>
 <main>
+<p class="wallet" id="wallet" hidden></p>
 <h1>ID review</h1>
 <p class="note" id="who">Loading…</p>
 <div id="list"></div>
@@ -68,6 +72,18 @@ async function load() {
     return;
   }
   reasons = d.reasons || {};
+  const w = $("wallet");
+  w.hidden = false;
+  if (d.wallet === null || d.wallet === undefined) {
+    w.textContent = "Reloadly wallet: couldn't check the balance right now.";
+  } else {
+    const low = d.wallet < d.lowBalance;
+    w.className = "wallet" + (low ? " low" : "");
+    w.innerHTML = "";
+    w.append("Reloadly wallet" + (d.walletMode === "live" ? "" : " (test mode)") + ": ", el("b", {}, "$" + d.wallet.toFixed(2)),
+      low ? ` — below $${d.lowBalance}. Amounts it can't cover are hidden on the store. Top up at reloadly.com.`
+          : ` · you get an email if it drops below $${d.lowBalance}.`);
+  }
   $("who").textContent = `Signed in as ${d.admin}. ${d.pending.length ? d.pending.length + " waiting." : "Nothing waiting."} ` +
     "Check the photo is a real, unexpired ID, the selfie is the same person, and the name matches what they typed. Photos are deleted as soon as you decide.";
   for (const req of d.pending) list.append(card(req));

@@ -86,6 +86,7 @@ const box = document.getElementById("box");
 const params = new URLSearchParams(location.search);
 const sessionId = params.get("session_id");
 const intentId = params.get("payment_intent");
+const reviewToken = params.get("review"); // from the link in a crypto order email
 const orderQuery = sessionId ? "session_id=" + encodeURIComponent(sessionId)
   : intentId ? "payment_intent=" + encodeURIComponent(intentId) : null;
 const started = Date.now();
@@ -157,7 +158,7 @@ document.getElementById("rSend").addEventListener("click", async () => {
     const anonymous = document.getElementById("rAnon").checked;
     const body = { rating, text: document.getElementById("rText").value, anonymous,
       name: anonymous ? "" : document.getElementById("rName").value };
-    if(sessionId) body.session_id = sessionId; else body.payment_intent = intentId;
+    if(sessionId) body.session_id = sessionId; else if(intentId) body.payment_intent = intentId; else body.review = reviewToken;
     const r = await fetch("/api/order", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
     if(!r.ok && r.status !== 409) throw new Error(d.error || "Couldn't post your review.");
@@ -173,6 +174,10 @@ document.getElementById("rSend").addEventListener("click", async () => {
 });
 
 async function poll(){
+  if(reviewToken){
+    message("How was your order?", "Thanks for buying from NOIR. Leave a quick review below.");
+    return askReview();
+  }
   if(new URLSearchParams(location.search).get("crypto")){
     return message("Crypto payment sent",
       "Once the network confirms it — usually a few minutes for ETH, USDT and USDC, and 10–60 minutes for Bitcoin — your code is emailed to you automatically. You can close this page.");
