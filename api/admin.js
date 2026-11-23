@@ -4,9 +4,12 @@
 //   POST { id, approve: true, idNumber }   -> approve (the ID number stops one ID being used twice)
 //   POST { id, approve: false, reason }    -> reject
 // Either way the photos are deleted straight away.
+//   GET ?reviews=1               -> newest reviews (including hidden)
+//   POST { action: "review", reviewId, hide: true|false } -> hide / show a review
 import { json } from "./_lib.js";
 import { accountsEnabled, currentUser } from "./_limits.js";
 import { isAdmin, listPending, getPhoto, decide, REJECT_REASONS } from "./_verify.js";
+import { adminReviews, setHidden } from "./_reviews.js";
 
 const NO_STORE = { "cache-control": "no-store, private", "x-robots-tag": "noindex" };
 
@@ -21,6 +24,7 @@ export async function GET(request) {
     const user = await admin(request);
     if (!user) return json({ error: "Not allowed." }, 403, NO_STORE);
     const url = new URL(request.url);
+    if (url.searchParams.get("reviews")) return json({ reviews: await adminReviews() }, 200, NO_STORE);
     const photoId = url.searchParams.get("photo");
     if (photoId) {
       const img = await getPhoto(photoId, url.searchParams.get("which"));
@@ -43,6 +47,10 @@ export async function POST(request) {
     if (!user) return json({ error: "Not allowed." }, 403, NO_STORE);
     let body;
     try { body = await request.json(); } catch { return json({ error: "Bad request." }, 400, NO_STORE); }
+    if (body.action === "review") {
+      const r = await setHidden(body.reviewId, body.hide === true);
+      return r.error ? json({ error: r.error }, r.status, NO_STORE) : json({ ok: true }, 200, NO_STORE);
+    }
     const r = await decide(body.id, { approve: body.approve === true, reason: body.reason, idNumber: body.idNumber }, user.email);
     if (r.error) return json({ error: r.error }, r.status, NO_STORE);
     return json({ ok: true }, 200, NO_STORE);
