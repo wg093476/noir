@@ -3,7 +3,7 @@
 //   ->  order status, and the code once it's ready. The success page polls this.
 // GET  /api/order?reviews=1[&offset=0&stars=5]  -> public reviews + rating summary
 // POST /api/order { session_id | payment_intent, rating, text, name } -> review a completed order
-import { fulfill, fulfillPaymentIntent, reloadly, findProduct, json } from "./_lib.js";
+import { fulfill, fulfillPaymentIntent, reloadly, findProduct, json, deliveredCount } from "./_lib.js";
 import { accountsEnabled, clientIp } from "./_limits.js";
 import { addReview, listReviews } from "./_reviews.js";
 
@@ -50,6 +50,7 @@ export async function GET(request) {
         limit: Math.min(50, Number(q.get("limit")) || 20),
         stars: [1, 2, 3, 4, 5].includes(Number(q.get("stars"))) ? Number(q.get("stars")) : 0,
       });
+      data.delivered = await deliveredCount().catch(() => 0);
       return json(data, 200, { "cache-control": "public, s-maxage=60, stale-while-revalidate=300" });
     } catch (err) {
       console.error(err);

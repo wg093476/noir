@@ -3,7 +3,7 @@
 // No npm packages needed: everything uses Node's built-in fetch + crypto.
 
 import crypto from "node:crypto";
-import { accountsEnabled, reserve, release, normEmail } from "./_limits.js";
+import { accountsEnabled, reserve, release, normEmail, redis } from "./_limits.js";
 import { effectiveTier } from "./_verify.js";
 
 // ---------- settings (from Vercel Environment Variables) ----------
@@ -123,6 +123,8 @@ export async function getCatalog() {
         _senderFeePercent: Number(p.senderFeePercentage) || 0,
         _discountPercent: Number(p.discountPercentage) || 0,
         _redeem: p.redeemInstruction?.concise || "",
+        // shown on the card page under "How to redeem"
+        redeem: String(p.redeemInstruction?.concise || "").slice(0, 700),
       };
     })
     .filter((p) => (p.type === "fixed" ? p.amounts.length > 0 : p.min <= p.max));
@@ -217,8 +219,8 @@ export function verifyStripeSignature(rawBody, header, secret, toleranceSec = 30
 
 // Buys one card from Reloadly. orderRef must be unique per customer payment:
 // Reloadly refuses the same customIdentifier twice, so a card can't be bought twice.
-export function placeOrder({ productId, amount, email, orderRef }) {
-  return reloadly("/orders", {
+export async function placeOrder({ productId, amount, email, orderRef }) {
+  const order = await reloadly("/orders", {
     method: "POST",
     body: {
       productId: Number(productId),
@@ -230,6 +232,18 @@ export function placeOrder({ productId, amount, email, orderRef }) {
       recipientEmail: email,
     },
   });
+  countDelivered().catch(() => {}); // never let the counter affect an order
+  return order;
+}
+
+// "Codes delivered" on the homepage: counts real (live-mode) website orders only.
+async function countDelivered() {
+  if (settings().reloadlyMode !== "live" || !accountsEnabled()) return;
+  await redis("INCR", "stats:delivered");
+}
+export async function deliveredCount() {
+  if (!accountsEnabled()) return 0;
+  return Number(await redis("GET", "stats:delivered")) || 0;
 }
 
 export const isDuplicateOrder = (err) =>
