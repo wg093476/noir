@@ -20,7 +20,8 @@ function displayName(raw) {
 }
 
 // order = { key, brand, amount } of a completed order
-export async function addReview(order, { rating, text, name, anonymous }, ip) {
+// username: the signed-in reviewer's username (set by the server, never taken from the form)
+export async function addReview(order, { rating, text, name, anonymous }, ip, username = null) {
   const r = Number(rating);
   if (!Number.isInteger(r) || r < 1 || r > 5) return { error: "Pick 1 to 5 stars.", status: 400 };
   const body = clean(text, 600);
@@ -38,7 +39,7 @@ export async function addReview(order, { rating, text, name, anonymous }, ip) {
     id: crypto.randomBytes(8).toString("hex"),
     rating: r,
     text: body,
-    name: anonymous === true ? "Anonymous" : displayName(name),
+    name: anonymous === true ? "Anonymous" : username || displayName(name),
     verified: true, // it came from a completed order
     brand: clean(order.brand, 40) || "Gift card",
     amount: Number(order.amount) || null,

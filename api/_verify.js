@@ -66,15 +66,43 @@ async function saveUser(email, user) {
   await redis("SET", "user:" + email, JSON.stringify(user));
 }
 
-// Name the customer chose in the Account panel (shown when they post a review).
-export async function setProfile(email, { name }) {
-  const clean = String(name || "").replace(/\s+/g, " ").trim();
-  if (clean.length > 60) return { error: "That name is too long.", status: 400 };
-  if (clean && !/^[\p{L}\p{M}' .-]+$/u.test(clean)) return { error: "Use letters only for your name.", status: 400 };
+// ---------- usernames ----------
+// Each account can pick a username (shown on its reviews and in the corner of the site).
+// Usernames are unique, ignoring capital letters: "Cohen" and "cohen" can't both exist.
+const RESERVED = new Set([
+  "admin", "administrator", "noir", "noirgc", "support", "staff", "mod", "moderator", "official",
+  "team", "help", "system", "root", "owner", "anonymous", "verified", "null", "undefined", "stripe", "reloadly",
+]);
+
+export function checkUsername(raw) {
+  const u = String(raw || "").trim();
+  if (u.length < 3 || u.length > 20) return "Usernames are 3 to 20 characters.";
+  if (!/^[A-Za-z0-9_.]+$/.test(u)) return "Use only letters, numbers, _ and . (no spaces).";
+  if (/^\.|\.$|\.\./.test(u)) return "A username can't start or end with a dot, or have two in a row.";
+  if (!/[A-Za-z]/.test(u)) return "Include at least one letter.";
+  const base = u.toLowerCase().replace(/[_.]/g, "");
+  if (RESERVED.has(base) || /^(noir|admin|support)/.test(base)) return "That username is reserved.";
+  return null;
+}
+
+export async function setUsername(email, raw) {
+  const u = String(raw || "").trim();
+  const problem = checkUsername(u);
+  if (problem) return { error: problem, status: 400 };
+  const key = "username:" + u.toLowerCase();
   const user = await getUser(email);
-  user.name = clean;
+  const old = user.username ? "username:" + user.username.toLowerCase() : null;
+  if (old !== key) {
+    // claim it: only works if nobody has it (SET NX is all-or-nothing, so two people can't both get it)
+    const ok = await redis("SET", key, email, "NX");
+    if (ok !== "OK") {
+      if ((await redis("GET", key)) !== email) return { error: "That username is taken — try another.", status: 409 };
+    }
+  }
+  user.username = u;
   await saveUser(email, user);
-  return { ok: true, name: clean };
+  if (old && old !== key) await redis("DEL", old); // free the old one
+  return { ok: true, username: u };
 }
 
 // What the storefront shows about a signed-in customer's verification.

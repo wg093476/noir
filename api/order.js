@@ -5,7 +5,8 @@
 // POST /api/order { session_id | payment_intent | review, rating, text, name } -> review a completed order
 //   (review = the token from the link in a crypto order email)
 import { fulfill, fulfillPaymentIntent, reloadly, findProduct, json, deliveredCount } from "./_lib.js";
-import { accountsEnabled, clientIp, redis } from "./_limits.js";
+import { accountsEnabled, clientIp, redis, currentUser } from "./_limits.js";
+import { getUser } from "./_verify.js";
 import { addReview, listReviews } from "./_reviews.js";
 
 // Look up a completed order from the link on the success page.
@@ -36,9 +37,12 @@ export async function POST(request) {
     if (!result) return json({ error: "Only completed orders can be reviewed." }, 403);
     const meta = result.pi.metadata || {};
     const product = await findProduct(meta.productId).catch(() => null);
+    // signed in with a username? the review shows it
+    const me = await currentUser(request).catch(() => null);
+    const username = me ? (await getUser(me.email)).username || null : null;
     const r = await addReview(
       { key: result.pi.id, brand: product?.brand || product?.name, amount: meta.amount },
-      body, clientIp(request));
+      body, clientIp(request), username);
     if (r.error) return json({ error: r.error }, r.status);
     return json({ ok: true });
   } catch (err) {

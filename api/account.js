@@ -4,7 +4,7 @@
 //   POST { action: "verify", email, code} -> signs in (sets the session cookie)
 //   POST { action: "logout" }             -> signs out
 //   POST { action: "id-submit", name, idType, idPhoto, selfie, consent } -> sends ID for review (signed in)
-//   POST { action: "profile", name }      -> saves the name shown on their reviews (signed in)
+//   POST { action: "username", username } -> picks a unique username (signed in)
 import crypto from "node:crypto";
 import { json, accountOrders } from "./_lib.js";
 import {
@@ -12,7 +12,7 @@ import {
   startSignIn, finishSignIn, endSession, normEmail, validEmail, clientIp,
   currentUser,
 } from "./_limits.js";
-import { getUser, verificationStatus, submitVerification, isAdmin, setProfile } from "./_verify.js";
+import { getUser, verificationStatus, submitVerification, isAdmin, setUsername } from "./_verify.js";
 
 const DEVICE_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
@@ -37,7 +37,7 @@ export async function GET(request) {
     if (b.email) {
       const user = await getUser(b.email);
       extra.verification = verificationStatus(user);
-      extra.name = user.name || "";
+      extra.username = user.username || "";
       extra.orders = await accountOrders(b.email).catch(() => []);
       extra.verifiedLimit = tierLimit("verified");
       if (isAdmin({ email: b.email })) extra.admin = true;
@@ -69,11 +69,11 @@ export async function POST(request) {
 
   if (!accountsEnabled()) return json({ error: "Accounts aren't available yet." }, 503);
 
-  if (body.action === "profile") {
+  if (body.action === "username") {
     const user = await currentUser(request);
     if (!user) return json({ error: "Sign in first." }, 401);
     try {
-      const r = await setProfile(user.email, body);
+      const r = await setUsername(user.email, body.username);
       return r.error ? json({ error: r.error }, r.status) : json(r);
     } catch (err) {
       console.error(err);
