@@ -42,6 +42,7 @@ window.NOIR = {
   f.innerHTML = `
 <nav>
   <a href="about.html">About &amp; FAQ</a>
+  <a href="reviews.html">Reviews</a>
   <a href="contact.html">Contact</a>
   <a href="refund.html">Refund policy</a>
   <a href="terms.html">Terms</a>
