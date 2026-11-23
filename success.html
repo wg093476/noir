@@ -32,6 +32,9 @@ border-top:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,
 font-size:22px;letter-spacing:2px;word-break:break-all;
 }
 .label{color:#666;font-size:11px;margin-top:14px}
+.label.small{font-size:10px;margin-top:22px}
+.serial{color:#777;font-size:11px;word-break:break-all;margin-top:6px;letter-spacing:.5px}
+.copy.small{font-size:11px;padding:6px 12px}
 .copy{
 margin-top:10px;padding:10px 18px;background:#fff;color:#000;border:none;border-radius:8px;
 font-family:inherit;font-size:13px;cursor:pointer;
@@ -109,14 +112,26 @@ function showCard(d){
   box.append(el("div", "title", `${d.name} — $${d.amount}`));
   box.append(el("div", "sub", d.email ? `A copy was also sent to ${d.email}` : "Save this code somewhere safe."));
 
+  const copyBtn = (text, label, small) => {
+    const btn = el("button", "copy" + (small ? " small" : ""), label);
+    btn.onclick = () => navigator.clipboard.writeText(text).then(() => (btn.textContent = "Copied ✓"));
+    return btn;
+  };
   d.cards.forEach(c => {
-    if(c.code){
-      box.append(el("div", "label", "CODE"), el("div", "code", c.code));
-      const btn = el("button", "copy", "Copy code");
-      btn.onclick = () => navigator.clipboard.writeText(c.code).then(() => (btn.textContent = "Copied ✓"));
-      box.append(btn);
+    // Some cards come with a long serial number plus a PIN, and the PIN is what you type in
+    // (Roblox works like this). Show the PIN as the code, and the serial small underneath.
+    const serialPlusPin = c.code && c.pin && (/roblox/i.test(d.name) || c.code.length > 24);
+    if(serialPlusPin){
+      box.append(el("div", "label", "YOUR CODE"), el("div", "code", c.pin), copyBtn(c.pin, "Copy code"));
+      box.append(el("div", "label small", "Serial number (not needed to redeem)"), el("div", "serial", c.code));
+    }else if(c.code && c.pin){
+      // both are needed (e.g. store cards that ask for a card number and a PIN)
+      box.append(el("div", "label", "CARD NUMBER"), el("div", "code", c.code), copyBtn(c.code, "Copy card number"));
+      box.append(el("div", "label", "PIN"), el("div", "code", c.pin), copyBtn(c.pin, "Copy PIN"));
+    }else if(c.code || c.pin){
+      const v = c.code || c.pin;
+      box.append(el("div", "label", "YOUR CODE"), el("div", "code", v), copyBtn(v, "Copy code"));
     }
-    if(c.pin){ box.append(el("div", "label", "PIN"), el("div", "code", c.pin)); }
     if(c.url){
       const p = el("div", "redeem");
       const a = el("a", null, "Open redemption link");
