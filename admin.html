@@ -28,6 +28,8 @@ button:disabled{opacity:.5}
 .big{position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;z-index:9;cursor:zoom-out}
 .big img{max-width:96vw;max-height:96vh}
 h2.sec{font-size:18px;margin:46px 0 6px;color:#fff;font-weight:500}
+.unrow{display:flex;gap:8px;max-width:420px}
+.unrow input{flex:1;background:#000;border:1px solid rgba(255,255,255,.25);color:#fff;padding:10px 12px;font-family:inherit;font-size:13px}
 .rv{border:1px solid rgba(255,255,255,.12);padding:14px 16px;margin:10px 0;display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
 .rv.hid{opacity:.45}
 .rv .stars{color:#fff}
@@ -46,6 +48,11 @@ h2.sec{font-size:18px;margin:46px 0 6px;color:#fff;font-weight:500}
 <h1>ID review</h1>
 <p class="note" id="who">Loading…</p>
 <div id="list"></div>
+<h2 class="sec" id="unHead" hidden>Usernames</h2>
+<p class="note" id="unNote" hidden>Someone picked a rude or misleading username? Reset it here. They'll have to pick a new one, and the old name stays blocked so nobody can take it again. Obvious bad words are already blocked automatically.</p>
+<div class="unrow" id="unRow" hidden><input id="unInput" placeholder="username to reset" autocapitalize="off" spellcheck="false"><button class="act" id="unGo">Reset</button></div>
+<p class="note" id="unMsg"></p>
+
 <h2 class="sec" id="revHead" hidden>Reviews</h2>
 <p class="note" id="revNote" hidden>Reviews come from completed website orders and from pre-launch customers (in api/_early-reviews.js). Hide ones that are abusive or share personal info (codes, emails, phone numbers) — you can't edit them, and hidden ones can be shown again.</p>
 <div id="revs"></div>
@@ -88,7 +95,24 @@ async function load() {
     "Check the photo is a real, unexpired ID, the selfie is the same person, and the name matches what they typed. Photos are deleted as soon as you decide.";
   for (const req of d.pending) list.append(card(req));
   loadReviews();
+  $("unHead").hidden = $("unNote").hidden = $("unRow").hidden = false;
 }
+
+async function resetUsername() {
+  const name = $("unInput").value.trim(), msg = $("unMsg"), btn = $("unGo");
+  if (!name) return;
+  if (!confirm(`Reset the username "${name}"? They'll have to pick a new one, and "${name}" stays blocked.`)) return;
+  btn.disabled = true; msg.textContent = "";
+  const r = await fetch("/api/admin", { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "username-reset", username: name }) });
+  const d = await r.json().catch(() => ({}));
+  msg.textContent = r.ok ? `Done — "${name}" removed from ${d.email} and blocked.` : (d.error || "Couldn't reset that.");
+  if (r.ok) $("unInput").value = "";
+  btn.disabled = false;
+}
+
+$("unGo").onclick = resetUsername;
+$("unInput").addEventListener("keydown", (e) => { if (e.key === "Enter") resetUsername(); });
 
 async function loadReviews() {
   const r = await fetch("/api/admin?reviews=1", { cache: "no-store" });
