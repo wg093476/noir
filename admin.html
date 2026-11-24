@@ -95,7 +95,10 @@ async function load() {
   const bw = $("bitwallet");
   if (d.bitrefill !== undefined) {
     bw.hidden = false;
-    if (d.bitrefill === null) {
+    if (d.bitrefillCur && d.bitrefillCur !== "USD") {
+      bw.className = "wallet low";
+      bw.textContent = `Bitrefill account currency is ${d.bitrefillCur}. Switch it to USD in your Bitrefill account settings — Bitrefill cards stay hidden on the store until you do.`;
+    } else if (d.bitrefill === null) {
       bw.className = "wallet";
       bw.textContent = "Bitrefill balance: couldn't check it right now.";
     } else {
