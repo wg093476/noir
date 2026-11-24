@@ -4,6 +4,7 @@
 // Photos are encrypted (AES-256-GCM) before they're stored in Upstash.
 
 import crypto from "node:crypto";
+import { ANYWHERE, WHOLE_WORD } from "./_blocklist.js";
 import { redis, normEmail, sendEmail, tierLimit } from "./_limits.js";
 
 const env = (name, fallback) => {
@@ -82,7 +83,44 @@ export function checkUsername(raw) {
   if (!/[A-Za-z]/.test(u)) return "Include at least one letter.";
   const base = u.toLowerCase().replace(/[_.]/g, "");
   if (RESERVED.has(base) || /^(noir|admin|support)/.test(base)) return "That username is reserved.";
+  if (isOffensive(u)) return "That username isn't allowed. Please pick another.";
   return null;
+}
+
+// undo the usual disguises: 0→o, 4→a, $→s, fuuuck→fuck ...
+const LEET = { 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", 9: "g", "@": "a", "$": "s", "!": "i" };
+const unleet = (t) => t.toLowerCase().replace(/[0-9@$!]/g, (c) => LEET[c] ?? c);
+const squash = (t) => t.replace(/(.)\1+/g, "$1");
+// each word as written, plus its squashed form when that's still 4+ letters ("nigger" -> "niger")
+const withSquashed = (list) => [...new Set(list.flatMap((w) => (squash(w).length >= 4 ? [w, squash(w)] : [w])))];
+const ANY = withSquashed(ANYWHERE);
+const WHOLE = new Set(withSquashed(WHOLE_WORD));
+
+export function isOffensive(raw) {
+  const plain = String(raw || "").toLowerCase();
+  // whole username, with and without the disguises, separators removed
+  const letters = [unleet(plain).replace(/[^a-z]/g, ""), plain.replace(/[^a-z]/g, "")];
+  const joined = [...letters, ...letters.map(squash)];
+  if (joined.some((j) => ANY.some((w) => j.includes(w)) || WHOLE.has(j))) return true;
+  // each word on its own: "big_ass_99" -> big, ass
+  const words = plain.split(/[_.]+|(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])/)
+    .flatMap((w) => [w, unleet(w)]).map((w) => w.replace(/[^a-z]/g, "")).filter(Boolean)
+    .flatMap((w) => [w, squash(w)]);
+  return words.some((w) => WHOLE.has(w));
+}
+
+// Admin: take a username away (it's then blocked for everyone, so it can't be re-taken).
+export async function resetUsername(username) {
+  const key = "username:" + String(username || "").trim().toLowerCase();
+  const email = await redis("GET", key);
+  if (!email || email === "__blocked__") return { error: "No account has that username.", status: 404 };
+  const user = await getUser(email);
+  if (user.username && user.username.toLowerCase() === key.slice(9)) {
+    delete user.username;
+    await saveUser(email, user);
+  }
+  await redis("SET", key, "__blocked__");
+  return { ok: true, email };
 }
 
 export async function setUsername(email, raw) {
@@ -96,7 +134,9 @@ export async function setUsername(email, raw) {
     // claim it: only works if nobody has it (SET NX is all-or-nothing, so two people can't both get it)
     const ok = await redis("SET", key, email, "NX");
     if (ok !== "OK") {
-      if ((await redis("GET", key)) !== email) return { error: "That username is taken — try another.", status: 409 };
+      const holder = await redis("GET", key);
+      if (holder === "__blocked__") return { error: "That username isn't available. Please pick another.", status: 409 };
+      if (holder !== email) return { error: "That username is taken — try another.", status: 409 };
     }
   }
   user.username = u;

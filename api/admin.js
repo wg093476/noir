@@ -6,9 +6,10 @@
 // Either way the photos are deleted straight away.
 //   GET ?reviews=1               -> newest reviews (including hidden)
 //   POST { action: "review", reviewId, hide: true|false } -> hide / show a review
+//   POST { action: "username-reset", username } -> take away a username (it stays blocked)
 import { json, walletBalance, settings } from "./_lib.js";
 import { accountsEnabled, currentUser } from "./_limits.js";
-import { isAdmin, listPending, getPhoto, decide, REJECT_REASONS } from "./_verify.js";
+import { isAdmin, listPending, getPhoto, decide, REJECT_REASONS, resetUsername } from "./_verify.js";
 import { adminReviews, setHidden } from "./_reviews.js";
 
 const NO_STORE = { "cache-control": "no-store, private", "x-robots-tag": "noindex" };
@@ -48,6 +49,10 @@ export async function POST(request) {
     if (!user) return json({ error: "Not allowed." }, 403, NO_STORE);
     let body;
     try { body = await request.json(); } catch { return json({ error: "Bad request." }, 400, NO_STORE); }
+    if (body.action === "username-reset") {
+      const r = await resetUsername(body.username);
+      return r.error ? json({ error: r.error }, r.status, NO_STORE) : json(r, 200, NO_STORE);
+    }
     if (body.action === "review") {
       const r = await setHidden(body.reviewId, body.hide === true);
       return r.error ? json({ error: r.error }, r.status, NO_STORE) : json({ ok: true }, 200, NO_STORE);
