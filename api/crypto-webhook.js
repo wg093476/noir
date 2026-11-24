@@ -5,7 +5,7 @@ import {
   verifyNowpaymentsSignature, parseCryptoOrderId, findProduct, priceFor,
   placeOrder, isDuplicateOrder, json, cryptoSandbox, reloadlyLive, recordOrder,
 } from "./_lib.js";
-import { accountsEnabled, redis, reserve, sendEmail } from "./_limits.js";
+import { accountsEnabled, redis, reserve, release, sendEmail } from "./_limits.js";
 import { adminEmails } from "./_verify.js";
 import crypto from "node:crypto";
 
@@ -23,7 +23,7 @@ async function thankYouEmail(orderId, email, product, amount) {
   const link = `${site()}/success.html?review=${token}`;
   await sendEmail(email, `Your ${product.name} $${amount} order`,
     `Thanks for your order! Your crypto payment went through and your ${product.name} $${amount} code ` +
-    `is being emailed to you separately (it comes from our supplier, so check spam too).\n\n` +
+    `is being emailed to you separately (check spam too).\n\n` +
     `How did it go? Leave a quick review: ${link}\n\nQuestions? Reply to support@noirgc.com.\n\nNOIR`);
 }
 
@@ -93,15 +93,23 @@ export async function POST(request) {
     if (accountsEnabled()) {
       saved = JSON.parse((await redis("GET", "crypto:" + body.order_id)) || "null");
       if (saved) await reserve(saved.tier, saved.ids, order.amount, { force: true });
-      await redis("DEL", "crypto:" + body.order_id);
     }
 
-    const result = await placeOrder({
-      productId: order.productId,
-      amount: order.amount,
-      email,
-      orderRef: body.order_id,
-    });
+    let result;
+    try {
+      result = await placeOrder({
+        productId: order.productId,
+        amount: order.amount,
+        email,
+        orderRef: body.order_id,
+      });
+    } catch (err) {
+      // supplier still working on it: keep the saved order and undo the hold (the resend counts it again)
+      if (err.pending && saved) await release(saved.ids, order.amount).catch(() => {});
+      if (!err.pending && accountsEnabled()) await redis("DEL", "crypto:" + body.order_id).catch(() => {});
+      throw err;
+    }
+    if (accountsEnabled()) await redis("DEL", "crypto:" + body.order_id).catch(() => {});
     console.log("Crypto order fulfilled", body.order_id, result.transactionId);
     const u = (saved?.ids || []).find((x) => x.startsWith("u:"));
     if (u) {
@@ -112,6 +120,8 @@ export async function POST(request) {
     return json({ received: true, fulfilled: true });
   } catch (err) {
     if (isDuplicateOrder(err)) return json({ received: true, fulfilled: true });
+    // supplier still working on it: answer "try again" so NOWPayments resends; the same order is re-checked
+    if (err.pending) return json({ error: "still processing" }, 503);
     // Crypto can't be refunded automatically. Shows in Vercel logs + NOWPayments dashboard.
     console.error("CRYPTO ORDER FAILED — customer paid, refund manually:", body.order_id, body.payment_id, err.message);
     await failureAlert(body, err).catch((e) => console.error("failure alert failed:", e.message));

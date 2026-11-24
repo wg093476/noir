@@ -6,6 +6,7 @@
 //   (review = the token from the link in a crypto order email)
 import { fulfill, fulfillPaymentIntent, reloadly, findProduct, json, deliveredCount } from "./_lib.js";
 import { accountsEnabled, clientIp, redis, currentUser } from "./_limits.js";
+import { bitrefillCards } from "./_bitrefill.js";
 import { getUser } from "./_verify.js";
 import { addReview, listReviews } from "./_reviews.js";
 
@@ -87,8 +88,21 @@ export async function GET(request) {
     const meta = result.pi.metadata || {};
     const product = await findProduct(meta.productId);
 
-    let cards = await reloadly(`/orders/transactions/${result.transactionId}/cards`);
-    if (!Array.isArray(cards)) cards = [cards];
+    let out, redeem = product?._redeem || "";
+    if (String(result.transactionId).startsWith("b.")) {
+      // bought from Bitrefill
+      const b = await bitrefillCards(result.transactionId);
+      out = b.cards;
+      if (b.instructions) redeem = b.instructions;
+    } else {
+      let cards = await reloadly(`/orders/transactions/${result.transactionId}/cards`);
+      if (!Array.isArray(cards)) cards = [cards];
+      out = cards.map((c) => ({
+        code: c.cardNumber != null ? String(c.cardNumber) : null,
+        pin: c.pinCode || null,
+        url: c.redemptionUrl || null,
+      }));
+    }
 
     return json(
       {
@@ -97,12 +111,8 @@ export async function GET(request) {
         logo: product?.logo || null,
         amount: Number(meta.amount),
         email: meta.email || result.pi.receipt_email || null,
-        redeem: product?._redeem || "",
-        cards: cards.map((c) => ({
-          code: c.cardNumber != null ? String(c.cardNumber) : null,
-          pin: c.pinCode || null,
-          url: c.redemptionUrl || null,
-        })),
+        redeem,
+        cards: out,
       },
       200,
       noStore

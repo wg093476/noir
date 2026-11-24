@@ -6,6 +6,9 @@ import crypto from "node:crypto";
 import { accountsEnabled, reserve, release, normEmail, redis } from "./_limits.js";
 import { effectiveTier, adminEmails } from "./_verify.js";
 import { sendEmail } from "./_limits.js";
+import {
+  bitrefillEnabled, bitrefillCatalog, bitrefillCost, bitrefillBalance as bitrefillBalanceRaw, bitrefillOrder, brandKey, isBitrefillId,
+} from "./_bitrefill.js";
 
 // ---------- settings (from Vercel Environment Variables) ----------
 
@@ -97,6 +100,12 @@ export async function reloadly(path, { method = "GET", body } = {}) {
 let walletCache = { balance: null, at: 0 };
 
 // Wallet balance in USD, cached for a minute. null = unknown (then sales are not blocked).
+// Bitrefill account balance (null if unknown); emails the owner when it runs low, like the Reloadly wallet.
+export async function bitrefillBalance(opts) {
+  const b = await bitrefillBalanceRaw(opts);
+  if (b !== null) lowBalanceAlert(b, "bitrefill").catch((e) => console.error("low balance email failed:", e.message));
+  return b;
+}
 export async function walletBalance({ fresh = false } = {}) {
   if (!fresh && walletCache.at && Date.now() - walletCache.at < 60 * 1000) return walletCache.balance;
   try {
@@ -115,7 +124,7 @@ export async function walletBalance({ fresh = false } = {}) {
 
 // true if the wallet can pay for this card right now
 export async function walletCovers(product, amount) {
-  const b = await walletBalance();
+  const b = product._supplier === "bitrefill" ? await bitrefillBalance() : await walletBalance();
   return b === null || priceFor(product, amount).cost <= b;
 }
 
@@ -124,11 +133,18 @@ export const OUT_OF_STOCK =
 
 // Email the owner (ADMIN_EMAILS) when the wallet drops below LOW_BALANCE_USD (default $200).
 // At most one email every 6 hours.
-async function lowBalanceAlert(balance) {
+async function lowBalanceAlert(balance, supplier = "reloadly") {
   const threshold = Number(process.env.LOW_BALANCE_USD || 200);
   if (!(balance < threshold) || !accountsEnabled() || !process.env.RESEND_API_KEY) return;
-  const first = await redis("SET", "alert:lowbalance", "1", "NX", "EX", 6 * 60 * 60);
+  const first = await redis("SET", supplier === "bitrefill" ? "alert:lowbalance:bitrefill" : "alert:lowbalance", "1", "NX", "EX", 6 * 60 * 60);
   if (first !== "OK") return;
+  if (supplier === "bitrefill") {
+    const t = `Your Bitrefill balance is down to $${balance.toFixed(2)}.\n\n` +
+      `Bitrefill card amounts (DoorDash and the others) that it can't cover are hidden on noirgc.com until you top it up.\n` +
+      `Top up at https://www.bitrefill.com (Account -> Balance).`;
+    for (const to of adminEmails()) await sendEmail(to, `NOIR: Bitrefill balance at $${balance.toFixed(2)}`, t);
+    return;
+  }
   const mode = settings().reloadlyMode === "live" ? "" : " (test mode)";
   const text =
     `Your Reloadly wallet is down to $${balance.toFixed(2)}${mode}.\n\n` +
@@ -140,10 +156,12 @@ async function lowBalanceAlert(balance) {
 // Catalog as the customer sees it: amounts the wallet can't cover right now are left out.
 export async function sellableCatalog() {
   const items = await getCatalog();
-  const b = await walletBalance();
-  if (b === null) return items;
+  const reloadlyBal = await walletBalance();
+  const bitBal = items.some((p) => p._supplier === "bitrefill") ? await bitrefillBalance() : null;
   const out = [];
   for (const p of items) {
+    const b = p._supplier === "bitrefill" ? bitBal : reloadlyBal;
+    if (b === null) { out.push(p); continue; }
     if (p.type === "fixed") {
       const amounts = p.amounts.filter((a) => priceFor(p, a).cost <= b);
       if (amounts.length) out.push({ ...p, amounts });
@@ -202,6 +220,21 @@ export async function getCatalog() {
       };
     })
     .filter((p) => (p.type === "fixed" ? p.amounts.length > 0 : p.min <= p.max));
+  // Second supplier: add Bitrefill brands that Reloadly doesn't have (e.g. DoorDash).
+  // If Bitrefill is down, the store keeps working with Reloadly's cards.
+  if (bitrefillEnabled()) {
+    try {
+      const have = new Set(items.map((p) => brandKey(p.brand || p.name)));
+      for (const b of await bitrefillCatalog(maxCardUsd)) {
+        const k = brandKey(b.brand || b.name);
+        if (!k || have.has(k)) continue;
+        have.add(k);
+        items.push(b);
+      }
+    } catch (err) {
+      console.error("Bitrefill catalog failed, showing Reloadly only:", err.message);
+    }
+  }
   catalogCache = { items, at: Date.now() };
   return items;
 }
@@ -223,11 +256,12 @@ export function isValidAmount(product, amount) {
 // What the customer pays. Always computed on the server.
 export function priceFor(product, amount) {
   const { serviceFeePercent, serviceFeeFlat } = settings();
-  // what Reloadly charges you for this card
-  const cost =
-    amount * (1 - product._discountPercent / 100) +
-    product._senderFee +
-    amount * (product._senderFeePercent / 100);
+  // what the supplier charges you for this card
+  const cost = product._supplier === "bitrefill"
+    ? bitrefillCost(product, amount)
+    : amount * (1 - product._discountPercent / 100) +
+      product._senderFee +
+      amount * (product._senderFeePercent / 100);
   let total = amount * (1 + serviceFeePercent / 100) + serviceFeeFlat;
   // never sell below cost + Stripe's fee (2.9% + 30¢) + a 1% cushion
   const floor = (cost + 0.3) / (1 - 0.039);
@@ -310,6 +344,13 @@ export function verifyStripeSignature(rawBody, header, secret, toleranceSec = 30
 // Buys one card from Reloadly. orderRef must be unique per customer payment:
 // Reloadly refuses the same customIdentifier twice, so a card can't be bought twice.
 export async function placeOrder({ productId, amount, email, orderRef }) {
+  if (isBitrefillId(productId)) {
+    const product = await findProduct(productId);
+    if (!product) throw new Error("Bitrefill product not found: " + productId);
+    const order = await bitrefillOrder({ product, amount: Number(amount), email, orderRef });
+    countDelivered().catch(() => {});
+    return order;
+  }
   const order = await reloadly("/orders", {
     method: "POST",
     body: {
@@ -405,6 +446,12 @@ async function fulfillIntent(pi, email) {
     }
     return { state: "done", transactionId: String(order.transactionId), pi };
   } catch (err) {
+    if (err.pending) {
+      // The supplier is still working on it. Don't refund; the next check (after 2 minutes) looks
+      // at the same supplier order again. Free the daily-limit hold, since that check counts it again.
+      await release(counted, meta.amount).catch(() => {});
+      return { state: "processing", pi };
+    }
     if (isDuplicateOrder(err)) {
       // The card was already ordered by another attempt; don't refund.
       return { state: "processing", pi };
@@ -517,7 +564,7 @@ export function makeCryptoOrderId(productId, amount) {
 }
 
 export function parseCryptoOrderId(id) {
-  const m = /^noir_(\d+)_(\d+(?:\.\d{1,2})?)_[0-9a-f]{12}$/.exec(String(id || ""));
+  const m = /^noir_(\d+|b\.[a-z0-9-]+)_(\d+(?:\.\d{1,2})?)_[0-9a-f]{12}$/.exec(String(id || ""));
   return m ? { productId: m[1], amount: Number(m[2]) } : null;
 }
 
