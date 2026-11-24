@@ -45,6 +45,7 @@ h2.sec{font-size:18px;margin:46px 0 6px;color:#fff;font-weight:500}
 <header class="top"><a href="index.html">NOIR</a></header>
 <main>
 <p class="wallet" id="wallet" hidden></p>
+<p class="wallet" id="bitwallet" hidden></p>
 <h1>ID review</h1>
 <p class="note" id="who">Loading…</p>
 <div id="list"></div>
@@ -90,6 +91,21 @@ async function load() {
     w.append("Reloadly wallet" + (d.walletMode === "live" ? "" : " (test mode)") + ": ", el("b", {}, "$" + d.wallet.toFixed(2)),
       low ? ` — below $${d.lowBalance}. Amounts it can't cover are hidden on the store. Top up at reloadly.com.`
           : ` · you get an email if it drops below $${d.lowBalance}.`);
+  }
+  const bw = $("bitwallet");
+  if (d.bitrefill !== undefined) {
+    bw.hidden = false;
+    if (d.bitrefill === null) {
+      bw.className = "wallet";
+      bw.textContent = "Bitrefill balance: couldn't check it right now.";
+    } else {
+      const low = d.bitrefill < d.lowBalance;
+      bw.className = "wallet" + (low ? " low" : "");
+      bw.innerHTML = "";
+      bw.append("Bitrefill balance: ", el("b", {}, "$" + d.bitrefill.toFixed(2)),
+        low ? ` — below $${d.lowBalance}. Bitrefill amounts it can't cover are hidden on the store. Top up at bitrefill.com.`
+            : ` · you get an email if it drops below $${d.lowBalance}.`);
+    }
   }
   $("who").textContent = `Signed in as ${d.admin}. ${d.pending.length ? d.pending.length + " waiting." : "Nothing waiting."} ` +
     "Check the photo is a real, unexpired ID, the selfie is the same person, and the name matches what they typed. Photos are deleted as soon as you decide.";
