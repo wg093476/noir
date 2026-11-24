@@ -4,8 +4,8 @@
 //   BITREFILL_API_KEY                          (a personal API key)
 // Cards are paid from your Bitrefill account balance, so keep it topped up like the Reloadly wallet.
 //
-// Safety: while the store is in test mode (RELOADLY_MODE isn't "live"), only Bitrefill's free
-// test products are shown, so a test payment can never buy a real card.
+// Safety: while the store is in test mode (RELOADLY_MODE isn't "live"), no real Bitrefill cards are
+// shown, so a test payment can never buy a real card. The Bitrefill account's currency must be USD.
 
 import { redis, accountsEnabled, sendEmail } from "./_limits.js";
 
@@ -58,6 +58,8 @@ const catName = (c) => {
   return typeof v === "string" && v ? v.slice(0, 40) : null;
 };
 
+const saneRate = (x) => Number.isFinite(x) && x >= 0.5 && x <= 1.25;
+
 function toItem(p, maxCardUsd) {
   const id = String(p.id || "");
   if (!/^[a-z0-9-]+$/.test(id)) return null;
@@ -67,10 +69,12 @@ function toItem(p, maxCardUsd) {
   const amounts = [];
   for (const k of pk) {
     const v = Number(k.value), price = Number(k.price);
-    if (v > 0 && v <= maxCardUsd && price > 0) { amounts.push(v); prices[v] = { price, packageId: k.id || k.package_id }; }
+    // Bitrefill quotes prices in the Bitrefill account's currency. Only sell when the price is clearly in
+    // dollars (50%–125% of the card value); anything else (sats, euros...) is skipped, never guessed.
+    if (v > 0 && v <= maxCardUsd && saneRate(price / v)) { amounts.push(v); prices[v] = { price, packageId: k.id || k.package_id }; }
   }
   const r = p.range && Number(p.range.max) > 0 ? p.range : null;
-  const isRange = amounts.length === 0 && r && Number(r.price_rate) > 0;
+  const isRange = amounts.length === 0 && r && saneRate(Number(r.price_rate));
   if (!amounts.length && !isRange) return null;
   if (isRange && Math.min(Math.floor(Number(r.max)), maxCardUsd) < Math.max(Math.ceil(Number(r.min) || 1), 1)) return null;
   const name = String(p.name || id);
@@ -78,7 +82,8 @@ function toItem(p, maxCardUsd) {
     id: BITREFILL_PREFIX + id,
     name,
     brand: name.replace(/\s+(USA|US)$/i, ""),
-    logo: /^https?:\/\//.test(p.image || "") ? p.image : null,
+    // card-shaped picture from Bitrefill's image server
+    logo: `https://cdn.bitrefill.com/primg/w400h250/${id}.webp`,
     category: catName(Array.isArray(p.categories) ? p.categories[0] : p.category),
     type: isRange ? "range" : "fixed",
     amounts: isRange ? [] : [...new Set(amounts)].sort((a, b) => a - b),
@@ -97,7 +102,7 @@ let mem = { items: null, at: 0 };
 export async function bitrefillCatalog(maxCardUsd) {
   if (!bitrefillEnabled()) return [];
   if (mem.items && Date.now() - mem.at < 10 * 60 * 1000) return mem.items;
-  const cacheKey = "bitrefill:catalog:" + (storeLive() ? "live" : "test");
+  const cacheKey = "bitrefill:catalog:v2:" + (storeLive() ? "live" : "test");
   // The saved list is kept for a day; after 30 minutes it's refreshed, and if Bitrefill is
   // slow or down the older list keeps being used.
   let saved = null;
@@ -111,6 +116,12 @@ export async function bitrefillCatalog(maxCardUsd) {
   let raw = [];
   try {
     if (storeLive()) {
+      // prices come in the Bitrefill account's currency, so it has to be USD
+      const cur = await bitrefillCurrency();
+      if (cur && cur !== "USD") {
+        console.error(`Bitrefill account currency is ${cur}, not USD: Bitrefill cards hidden until it's switched to USD`);
+        return [];
+      }
       let next = "/products?country=US&type=gift_card&limit=50";
       for (let page = 0; next && page < 60; page++) {
         const d = await bitrefill(next);
@@ -142,7 +153,12 @@ export function bitrefillCost(product, amount) {
   return Number(amount) * (product._priceRate || 1);
 }
 
-let balCache = { v: null, at: 0 };
+let balCache = { v: null, cur: null, at: 0 };
+// The Bitrefill account's currency ("USD", "BTC"...), or null if it couldn't be checked.
+export async function bitrefillCurrency() {
+  await bitrefillBalance();
+  return balCache.cur;
+}
 export async function bitrefillBalance({ fresh = false } = {}) {
   if (!bitrefillEnabled()) return null;
   if (!fresh && balCache.at && Date.now() - balCache.at < 60 * 1000) return balCache.v;
@@ -150,10 +166,10 @@ export async function bitrefillBalance({ fresh = false } = {}) {
     const d = await bitrefill("/accounts/balance");
     const b = Number(d.data?.balance ?? d.balance);
     const cur = String(d.data?.currency ?? d.currency ?? "USD").toUpperCase();
-    balCache = { v: Number.isFinite(b) && cur === "USD" ? b : null, at: Date.now() };
+    balCache = { v: Number.isFinite(b) && cur === "USD" ? b : null, cur, at: Date.now() };
   } catch (err) {
     console.error("Bitrefill balance check failed:", err.message);
-    balCache = { v: null, at: Date.now() };
+    balCache = { v: null, cur: null, at: Date.now() };
   }
   return balCache.v;
 }

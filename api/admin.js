@@ -8,7 +8,7 @@
 //   POST { action: "review", reviewId, hide: true|false } -> hide / show a review
 //   POST { action: "username-reset", username } -> take away a username (it stays blocked)
 import { json, walletBalance, settings, bitrefillBalance } from "./_lib.js";
-import { bitrefillEnabled } from "./_bitrefill.js";
+import { bitrefillEnabled, bitrefillCurrency } from "./_bitrefill.js";
 import { accountsEnabled, currentUser } from "./_limits.js";
 import { isAdmin, listPending, getPhoto, decide, REJECT_REASONS, resetUsername } from "./_verify.js";
 import { adminReviews, setHidden } from "./_reviews.js";
@@ -35,7 +35,8 @@ export async function GET(request) {
     }
     const wallet = await walletBalance({ fresh: true });
     const bitrefill = bitrefillEnabled() ? await bitrefillBalance({ fresh: true }) : undefined;
-    return json({ admin: user.email, pending: await listPending(), reasons: REJECT_REASONS, wallet, bitrefill, walletMode: settings().reloadlyMode, lowBalance: Number(process.env.LOW_BALANCE_USD || 200) }, 200, NO_STORE);
+    const bitrefillCur = bitrefillEnabled() ? await bitrefillCurrency() : undefined;
+    return json({ admin: user.email, pending: await listPending(), reasons: REJECT_REASONS, wallet, bitrefill, bitrefillCur, walletMode: settings().reloadlyMode, lowBalance: Number(process.env.LOW_BALANCE_USD || 200) }, 200, NO_STORE);
   } catch (err) {
     console.error(err);
     return json({ error: "Something went wrong." }, 500, NO_STORE);
